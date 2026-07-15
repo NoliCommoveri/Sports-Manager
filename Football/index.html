@@ -753,6 +753,13 @@
                                 <option value="unassigned">Unassigned</option>
                             </select>
                         </div>
+                        <div class="form-group form-group-small">
+                            <label>&nbsp;</label>
+                            <label style="display: flex; align-items: center; gap: var(--spacing-xs); font-weight: 500; cursor: pointer;">
+                                <input type="checkbox" id="player-filter-my-player" style="width: auto;">
+                                ⭐ My Players Only
+                            </label>
+                        </div>
                     </div>
                 </div>
 
@@ -835,6 +842,13 @@
                                 <option value="completed">Completed</option>
                                 <option value="cancelled">Cancelled</option>
                             </select>
+                        </div>
+                        <div class="form-group form-group-small">
+                            <label>&nbsp;</label>
+                            <label style="display: flex; align-items: center; gap: var(--spacing-xs); font-weight: 500; cursor: pointer;">
+                                <input type="checkbox" id="schedule-filter-my-player" style="width: auto;">
+                                ⭐ My Games Only
+                            </label>
                         </div>
                         <div>
                             <button class="btn-secondary" id="schedule-clear-filters">Clear Filters</button>
@@ -990,6 +1004,12 @@
                     <select id="player-teamId">
                         <option value="">No Team (Unassigned)</option>
                     </select>
+                </div>
+                <div class="form-group">
+                    <label style="display: flex; align-items: center; gap: var(--spacing-xs); cursor: pointer;">
+                        <input type="checkbox" id="player-isMyPlayer" style="width: auto;">
+                        ⭐ This is my player
+                    </label>
                 </div>
                 <div class="btn-group">
                     <button type="submit" class="btn-primary">Save Player</button>
@@ -1392,8 +1412,20 @@
                         result = result.filter(p => !p.teamId);
                     }
                 }
+                if (filters.myPlayer) {
+                    result = result.filter(p => p.isMyPlayer);
+                }
 
                 return result.sort((a, b) => `${a.firstName} ${a.lastName}`.localeCompare(`${b.firstName} ${b.lastName}`));
+            }
+
+            // Team IDs with at least one player marked as "my player"
+            getMyTeamIds() {
+                return new Set(
+                    this.players
+                        .filter(p => p.isMyPlayer && p.teamId)
+                        .map(p => p.teamId)
+                );
             }
 
             calculateAge(birthYear) {
@@ -1528,11 +1560,15 @@
                         return eventDate >= filters.dateStart && eventDate <= filters.dateEnd;
                     });
                 }
+                if (filters.myPlayer) {
+                    const myTeamIds = this.getMyTeamIds();
+                    result = result.filter(e => myTeamIds.has(e.teamId) || (e.opponentTeamId && myTeamIds.has(e.opponentTeamId)));
+                }
 
                 return result.sort((a, b) => parseLocalDate(a.date) - parseLocalDate(b.date));
             }
 
-            getWeekEvents() {
+            getWeekEvents(extraFilters = {}) {
                 const today = new Date();
                 today.setHours(0, 0, 0, 0);
                 const weekStart = new Date(today);
@@ -1542,7 +1578,8 @@
 
                 return this.getEvents({
                     dateStart: weekStart,
-                    dateEnd: weekEnd
+                    dateEnd: weekEnd,
+                    ...extraFilters
                 });
             }
 
@@ -1774,10 +1811,12 @@
             const search = document.getElementById('player-search').value;
             const teamId = document.getElementById('player-filter-team').value;
             const assigned = document.getElementById('player-filter-assigned').value;
+            const myPlayerOnly = document.getElementById('player-filter-my-player').checked;
 
             const filters = { search, teamId: teamId || null };
             if (assigned === 'assigned') filters.assigned = true;
             if (assigned === 'unassigned') filters.assigned = false;
+            if (myPlayerOnly) filters.myPlayer = true;
 
             const players = league.getPlayers(filters);
 
@@ -1796,7 +1835,7 @@
                 const team = player.teamId ? league.getTeam(player.teamId) : null;
                 const row = document.createElement('tr');
                 row.innerHTML = `
-                    <td>${player.firstName} ${player.lastName}</td>
+                    <td>${player.isMyPlayer ? '⭐ ' : ''}${player.firstName} ${player.lastName}</td>
                     <td>${player.birthYear}</td>
                     <td>${player.age}</td>
                     <td>${team ? team.name : '<span style="color: var(--color-text-light);">Unassigned</span>'}</td>
@@ -1908,7 +1947,8 @@
 
         function renderScheduleWeek() {
             const container = document.getElementById('schedule-view-week-content');
-            const events = league.getWeekEvents();
+            const myPlayerOnly = document.getElementById('schedule-filter-my-player').checked;
+            const events = league.getWeekEvents(myPlayerOnly ? { myPlayer: true } : {});
 
             if (events.length === 0) {
                 container.innerHTML = '<div class="empty-state"><p>No events this week</p></div>';
@@ -1927,6 +1967,8 @@
 
             window.calendarMonth = currentMonth;
             window.calendarYear = currentYear;
+
+            const myPlayerOnly = document.getElementById('schedule-filter-my-player').checked;
 
             const date = new Date(currentYear, currentMonth, 1);
             const firstDay = date.getDay();
@@ -1963,7 +2005,7 @@
                 dayEl.className = 'calendar-day';
                 const dateStr = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(i).padStart(2, '0')}`;
 
-                const dayEvents = league.getEvents().filter(e => e.date === dateStr);
+                const dayEvents = league.getEvents(myPlayerOnly ? { myPlayer: true } : {}).filter(e => e.date === dateStr);
                 if (dayEvents.length > 0) {
                     dayEl.classList.add('has-events');
                     dayEl.addEventListener('click', () => showDayDetail(dateStr));
@@ -1992,7 +2034,8 @@
         }
 
         function showDayDetail(dateStr) {
-            const dayEvents = league.getEvents().filter(e => e.date === dateStr);
+            const myPlayerOnly = document.getElementById('schedule-filter-my-player').checked;
+            const dayEvents = league.getEvents(myPlayerOnly ? { myPlayer: true } : {}).filter(e => e.date === dateStr);
             if (dayEvents.length === 0) return;
 
             const dateLabel = formatDate(dateStr);
@@ -2039,6 +2082,7 @@
                 status: document.getElementById('schedule-filter-status').value || null,
                 division: document.getElementById('schedule-filter-division').value || null
             };
+            if (document.getElementById('schedule-filter-my-player').checked) filters.myPlayer = true;
 
             const events = league.getEvents(filters);
             const tbody = document.getElementById('schedule-list-tbody');
@@ -2149,6 +2193,7 @@
                 select.appendChild(option);
             });
             select.value = player.teamId || '';
+            document.getElementById('player-isMyPlayer').checked = !!player.isMyPlayer;
 
             document.getElementById('player-modal').querySelector('.modal-header h2').textContent = 'Edit Player';
             openModal('player-modal');
@@ -2169,7 +2214,8 @@
                 firstName: document.getElementById('player-firstName').value,
                 lastName: document.getElementById('player-lastName').value,
                 birthYear: parseInt(document.getElementById('player-birthYear').value),
-                teamId: document.getElementById('player-teamId').value ? parseInt(document.getElementById('player-teamId').value) : null
+                teamId: document.getElementById('player-teamId').value ? parseInt(document.getElementById('player-teamId').value) : null,
+                isMyPlayer: document.getElementById('player-isMyPlayer').checked
             };
 
             if (currentEditingPlayerId) {
@@ -2285,7 +2331,7 @@
             } else {
                 rosterHTML += '<table style="width: 100%; margin-bottom: var(--spacing-lg);"><thead><tr><th>Name</th><th>Age</th></tr></thead><tbody>';
                 roster.forEach(player => {
-                    rosterHTML += `<tr><td>${player.firstName} ${player.lastName}</td><td>${player.age}</td></tr>`;
+                    rosterHTML += `<tr><td>${player.isMyPlayer ? '⭐ ' : ''}${player.firstName} ${player.lastName}</td><td>${player.age}</td></tr>`;
                 });
                 rosterHTML += '</tbody></table>';
             }
@@ -2794,18 +2840,21 @@
         document.getElementById('player-search').addEventListener('input', renderPlayers);
         document.getElementById('player-filter-team').addEventListener('change', renderPlayers);
         document.getElementById('player-filter-assigned').addEventListener('change', renderPlayers);
+        document.getElementById('player-filter-my-player').addEventListener('change', renderPlayers);
 
         document.getElementById('schedule-filter-team').addEventListener('change', renderScheduleList);
         document.getElementById('schedule-filter-type').addEventListener('change', renderScheduleList);
         document.getElementById('schedule-filter-status').addEventListener('change', renderScheduleList);
         document.getElementById('schedule-filter-division').addEventListener('change', renderScheduleList);
+        document.getElementById('schedule-filter-my-player').addEventListener('change', renderSchedule);
 
         document.getElementById('schedule-clear-filters').addEventListener('click', () => {
             document.getElementById('schedule-filter-team').value = '';
             document.getElementById('schedule-filter-type').value = '';
             document.getElementById('schedule-filter-status').value = '';
             document.getElementById('schedule-filter-division').value = '';
-            renderScheduleList();
+            document.getElementById('schedule-filter-my-player').checked = false;
+            renderSchedule();
         });
 
         // Initialize
