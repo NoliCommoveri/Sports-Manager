@@ -1,5 +1,5 @@
-// snacks.js — snack schedule view, flags unassigned upcoming practices.
-// Per architecture §7, this view filters to practices only — it isn't a
+// snacks.js — snack schedule view, flags unassigned upcoming games.
+// Per architecture §7, this view filters to games only — it isn't a
 // general snack-assignment view for every event type.
 import {
   getEvents, getSnackAssignmentsForEvent, addSnackAssignment, deleteSnackAssignment,
@@ -23,13 +23,13 @@ export function mount(container) {
 
   function render() {
     const today = todayStr();
-    const practices = getEvents()
-      .filter(e => e.type === 'practice')
+    const games = getEvents()
+      .filter(e => e.type === 'game')
       .sort((a, b) => a.date === b.date
         ? (a.startTime || '').localeCompare(b.startTime || '') : a.date.localeCompare(b.date));
     const parents = getParents();
 
-    tbody.innerHTML = practices.map(e => {
+    tbody.innerHTML = games.map(e => {
       const assignments = getSnackAssignmentsForEvent(e.id);
       const isUpcoming = e.date >= today && e.status === 'scheduled';
       const unassigned = isUpcoming && assignments.length === 0;
@@ -59,7 +59,7 @@ export function mount(container) {
             </div>
           </td>
         </tr>`;
-    }).join('') || '<tr><td colspan="4">No practices scheduled.</td></tr>';
+    }).join('') || '<tr><td colspan="4">No games scheduled.</td></tr>';
   }
 
   tbody.addEventListener('click', (e) => {
