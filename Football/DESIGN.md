@@ -86,7 +86,7 @@ files — see §13):
       roster.js              players; filter/sort; "my player" star
       parents.js             parents + player links
       communications.js      weekly digest broadcast + per-parent contact
-      snacks.js              snack duty per practice
+      snacks.js              snack duty per game
       fundraisers.js         fundraisers + occurrences + platforms
       settings.js            team info, backup/restore, export, help, danger zone
 ```
@@ -202,7 +202,7 @@ multiple parents)
 ```
 
 **SnackAssignment** (which parent brings snacks to which event; the Snacks view
-only surfaces *practices*)
+only surfaces *games*)
 ```jsonc
 { "id","eventId","parentId","notes":"","updatedAt" }
 ```
@@ -422,7 +422,7 @@ all parent emails; per-parent Email/Text rows build `mailto:`/`sms:` links
 (escaped in `href`). Copy-to-clipboard fallback for when no mail client is wired.
 
 ### 9.6 snacks.js (`#/snacks`)
-**Practices only** (by design). Flags upcoming practices with no snack parent.
+**Games only** (by design). Flags upcoming games with no snack parent.
 Assign/unassign pulls from the parent list. Deleted parents render
 `(deleted parent)` (I-7). Date/time are escaped.
 

@@ -34,7 +34,7 @@ export function buildWeeklyUpdateText(daysAhead = 7) {
     line += e.type === 'game' ? ` — Game vs ${opp || 'TBD'}` : ' — Practice';
     if (e.location) line += ` @ ${e.location}`;
     if (snackNames.length) line += ` (Snacks: ${snackNames.join(', ')})`;
-    else if (e.type === 'practice') line += ' (Snacks: unassigned)';
+    else if (e.type === 'game') line += ' (Snacks: unassigned)';
     return line;
   });
 

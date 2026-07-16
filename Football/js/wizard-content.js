@@ -49,7 +49,7 @@ export const WIZARD_STEPS = [
     id: 7,
     icon: '🍊',
     title: 'Snack duty',
-    body: 'Assign a parent to bring snacks for each practice. Any unassigned upcoming practice gets flagged automatically, so nothing gets missed.',
+    body: 'Assign a parent to bring snacks for each game. Any unassigned upcoming game gets flagged automatically, so nothing gets missed.',
     kind: 'standard'
   },
   {
