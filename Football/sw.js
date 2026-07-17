@@ -1,4 +1,4 @@
-const CACHE_NAME = 'stm-shell-v15';
+const CACHE_NAME = 'stm-shell-v16';
 
 // App shell + app JS. Earlier versions excluded `js/*.js` so it always came
 // from the network, but that leaves the cached shell unable to hydrate
@@ -70,11 +70,21 @@ self.addEventListener('activate', (event) => {
 
 const SHELL_URLS = new Set(SHELL_FILES.map((f) => new URL(f, self.location.href).href));
 
+// The read-only Parent App is a nested sub-app (`Football/Parent/`) with its
+// OWN service worker and a more-specific scope. That scope wins for anyone who
+// has visited the Parent App — but on a device that already runs THIS admin
+// SW, the very first (pre-Parent-SW) open of a Parent link falls under our
+// broader `/Football/` scope. Never handle those requests here: our navigate
+// fallback would serve the admin shell in place of the Parent App while
+// offline. Passing them through lets the Parent SW take over cleanly.
+const PARENT_SCOPE = new URL('./Parent/', self.location.href).href;
+
 self.addEventListener('fetch', (event) => {
   const { request } = event;
   if (request.method !== 'GET' || new URL(request.url).origin !== self.location.origin) {
     return;
   }
+  if (request.url.startsWith(PARENT_SCOPE)) return;
 
   if (SHELL_URLS.has(request.url)) {
     // Shell files are pinned per deploy (see CACHE_NAME) — cache-first is safe.
