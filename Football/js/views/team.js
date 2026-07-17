@@ -5,6 +5,7 @@ import {
   getTeamRecord, getNextEventOfType, getStaleEvents, getStaleFundraisers
 } from '../selectors.js';
 import { escapeHtml } from '../util.js';
+import { eventTypeLabel } from '../event-types.js';
 
 function fmtDate(d) {
   return new Date(d + 'T00:00')
@@ -95,7 +96,7 @@ export function mount(container) {
       const opp = e.opponentId ? getOpponentById(e.opponentId) : null;
       const label = e.type === 'game'
         ? `Game${opp ? ` vs ${escapeHtml(opp.name)}` : ''}`
-        : 'Practice';
+        : escapeHtml(eventTypeLabel(e.type));
       return `
         <div class="attn-row" data-kind="event" data-id="${e.id}" data-type="${e.type}">
           <span>${fmtDate(e.date)} · ${label} — still marked scheduled.</span>

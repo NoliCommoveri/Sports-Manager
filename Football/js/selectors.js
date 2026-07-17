@@ -68,6 +68,16 @@ export function getStaleFundraisers(today = todayStr()) {
   });
 }
 
+// --- Players carrying an outstanding balance, largest first ---
+// Drives the Overdue Fees notice in Communications. Note: this is a private,
+// per-family figure (I-9) — it is surfaced only to compose a targeted message
+// to that player's own parents, never in an export or a team-wide broadcast.
+export function getPlayersWithBalance() {
+  return getData().players
+    .filter(p => (p.outstandingBalanceCents || 0) > 0)
+    .sort((a, b) => (b.outstandingBalanceCents || 0) - (a.outstandingBalanceCents || 0));
+}
+
 // --- Convenience: is there anything needing attention at all? ---
 export function hasHygieneItems(today = todayStr()) {
   return getStaleEvents(today).length > 0 || getStaleFundraisers(today).length > 0;

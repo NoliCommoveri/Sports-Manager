@@ -6,16 +6,28 @@ import {
 } from '../data.js';
 import { todayStr } from '../selectors.js';
 import { escapeHtml } from '../util.js';
+import { EVENT_TYPES, eventTypeLabel } from '../event-types.js';
 
 const STATUS_LABEL = { scheduled: 'Scheduled', canceled: 'Canceled', completed: 'Completed' };
-const TYPE_LABEL = { practice: 'Practice', game: 'Game' };
+
+// Type <option> list, built from the registry so a new type is schedulable the
+// moment it's added there. `selected` keeps an existing (incl. legacy) value.
+function typeOptionsHtml(selected = '') {
+  const known = EVENT_TYPES.map(t =>
+    `<option value="${t.value}" ${t.value === selected ? 'selected' : ''}>${escapeHtml(t.label)}</option>`
+  ).join('');
+  const extra = selected && !EVENT_TYPES.some(t => t.value === selected)
+    ? `<option value="${escapeHtml(selected)}" selected>${escapeHtml(selected)}</option>`
+    : '';
+  return known + extra;
+}
 
 export function mount(container) {
   container.innerHTML = `
     <h2>Schedule</h2>
     <button type="button" id="add-toggle" class="add-toggle-btn" aria-expanded="false">+ Add Event</button>
     <form id="add-event-form" class="add-form" hidden>
-      <select name="type"><option value="practice">Practice</option><option value="game">Game</option></select>
+      <select name="type">${typeOptionsHtml('practice')}</select>
       <input type="date" name="date" required />
       <input type="time" name="startTime" required />
       <input type="time" name="endTime" />
@@ -89,15 +101,12 @@ export function mount(container) {
             <td><input type="date" class="f-date" value="${e.date}" /></td>
             <td><input type="time" class="f-start" value="${e.startTime}" /></td>
             <td>
-              <select class="f-type">
-                <option value="practice" ${!isGame ? 'selected' : ''}>Practice</option>
-                <option value="game" ${isGame ? 'selected' : ''}>Game</option>
-              </select>
+              <select class="f-type">${typeOptionsHtml(e.type)}</select>
             </td>
           ` : `
             <td>${stale ? '⚠️ ' : ''}${escapeHtml(e.date)}</td>
             <td>${escapeHtml(e.startTime)}</td>
-            <td>${TYPE_LABEL[e.type] || e.type}</td>
+            <td>${escapeHtml(eventTypeLabel(e.type))}</td>
           `}
           <td><button class="expand-toggle" aria-expanded="${isExpanded}" title="More fields">${isExpanded ? '▾' : '▸'}</button></td>
         </tr>
