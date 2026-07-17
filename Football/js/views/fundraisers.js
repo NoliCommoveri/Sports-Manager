@@ -4,6 +4,7 @@ import {
   getFundraiserOccurrencesForFundraiser, addFundraiserOccurrence,
   updateFundraiserOccurrence, deleteFundraiserOccurrence,
   getFundraiserPlatforms, addFundraiserPlatform,
+  getFundraiserKinds, addFundraiserKind,
   subscribe
 } from '../data.js';
 import { escapeHtml, dollarsToCents } from '../util.js';
@@ -16,16 +17,24 @@ export function mount(container) {
     <h3>Add Fundraiser</h3>
     <form id="add-fundraiser-form">
       <input name="name" placeholder="Name" required />
-      <select name="kind">
-        <option value="uniforms">Uniforms</option>
-        <option value="team_trip">Team Trip</option>
-        <option value="general">General</option>
-      </select>
+      <select name="kind" id="kind-select"></select>
+      <button type="button" id="new-kind-btn">+ New type</button>
       <select name="platformId" id="platform-select"><option value="">— In person —</option></select>
       <button type="button" id="new-platform-btn">+ New platform</button>
       <input name="goalAmount" type="number" step="0.01" placeholder="Goal $" />
       <button type="submit">Add Fundraiser</button>
     </form>
+
+    <dialog id="kind-dialog">
+      <h3>New Fundraiser Type</h3>
+      <form id="kind-form">
+        <input name="name" placeholder="Type name (e.g. Equipment)" required />
+        <div class="modal-actions">
+          <button type="button" class="cancel-btn" id="kind-cancel-btn">Cancel</button>
+          <button type="submit">Add Type</button>
+        </div>
+      </form>
+    </dialog>
     <section class="fundraiser-group">
       <h3>Completed</h3>
       <div id="fundraisers-completed"></div>
@@ -36,8 +45,26 @@ export function mount(container) {
   const completedList = container.querySelector('#fundraisers-completed');
   const form = container.querySelector('#add-fundraiser-form');
   const platformSelect = container.querySelector('#platform-select');
+  const kindSelect = container.querySelector('#kind-select');
+  const kindDialog = container.querySelector('#kind-dialog');
+  const kindForm = container.querySelector('#kind-form');
   const expandedCompleted = new Set();
   const editingIds = new Set();
+
+  // The three built-ins (value ≠ label for team_trip) plus any admin-defined
+  // types, which store name-as-value. Both feed the one Type dropdown.
+  const BUILTIN_KINDS = [
+    { value: 'uniforms', label: 'Uniforms' },
+    { value: 'team_trip', label: 'Team Trip' },
+    { value: 'general', label: 'General' }
+  ];
+
+  function renderKindOptions(selectedValue = kindSelect.value || 'uniforms') {
+    const custom = getFundraiserKinds().map(k => ({ value: k.name, label: k.name }));
+    kindSelect.innerHTML = [...BUILTIN_KINDS, ...custom].map(k =>
+      `<option value="${escapeHtml(k.value)}" ${k.value === selectedValue ? 'selected' : ''}>${escapeHtml(k.label)}</option>`
+    ).join('');
+  }
 
   function renderPlatformOptions(select, selectedId = '') {
     const opts = getFundraiserPlatforms().map(p =>
@@ -118,6 +145,7 @@ export function mount(container) {
 
   function render() {
     renderPlatformOptions(platformSelect);
+    renderKindOptions();
     const fundraisers = getFundraisers();
     const active = fundraisers.filter(f => f.status !== 'completed');
     const completed = fundraisers.filter(f => f.status === 'completed');
@@ -183,6 +211,27 @@ export function mount(container) {
     const platform = addFundraiserPlatform({ name, url });
     renderPlatformOptions(platformSelect, platform.id);
   });
+
+  container.querySelector('#new-kind-btn').addEventListener('click', () => {
+    kindForm.reset();
+    kindDialog.showModal();
+  });
+  kindForm.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const name = new FormData(kindForm).get('name').trim();
+    if (!name) return;
+    const lc = name.toLowerCase();
+    // Don't duplicate a built-in or an existing custom type — just select it.
+    const builtin = BUILTIN_KINDS.find(k => k.label.toLowerCase() === lc || k.value.toLowerCase() === lc);
+    const existing = getFundraiserKinds().find(k => k.name.toLowerCase() === lc);
+    const selectValue = builtin ? builtin.value
+      : existing ? existing.name
+      : addFundraiserKind({ name }).name;
+    kindDialog.close();
+    renderKindOptions(selectValue);
+  });
+  kindDialog.addEventListener('close', () => kindForm.reset());
+  container.querySelector('#kind-cancel-btn').addEventListener('click', () => kindDialog.close());
 
   form.addEventListener('submit', (e) => {
     e.preventDefault();

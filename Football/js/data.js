@@ -1,7 +1,7 @@
 // data.js — the only file allowed to call localStorage.
 
 const STORAGE_KEY = 'stm:v1';
-const SCHEMA_VERSION = 2;
+const SCHEMA_VERSION = 3;
 
 let _cache = null;
 const _subs = new Set(); // () => void, called after an external (cross-tab) change
@@ -24,7 +24,7 @@ function emptyData() {
     settings: { teamName: '', season: '', myPlayerId: null, hasSeenWizard: false },
     players: [], parents: [], playerParents: [], opponents: [],
     events: [], snackAssignments: [],
-    fundraiserPlatforms: [], fundraisers: [], fundraiserOccurrences: []
+    fundraiserPlatforms: [], fundraiserKinds: [], fundraisers: [], fundraiserOccurrences: []
   };
 }
 
@@ -34,7 +34,15 @@ function migrate(data) {
     data.meta.changesSinceBackup = data.meta.changesSinceBackup ?? 0;
     data.schemaVersion = 2;
   }
-  // Pass-through at schemaVersion 2. Next migration branches here. Every
+  if (data.schemaVersion < 3) {
+    // Upgraders have already used the app, so don't re-show the wizard — default
+    // hasSeenWizard true for them (the drift this migration finally closes).
+    data.settings.hasSeenWizard ??= true;
+    // Custom fundraiser types (the built-in three live in the view, not here).
+    data.fundraiserKinds = data.fundraiserKinds ?? [];
+    data.schemaVersion = 3;
+  }
+  // Pass-through at schemaVersion 3. Next migration branches here. Every
   // load path (loadData, the storage listener, importBackup) routes
   // through this.
   return data;
@@ -186,6 +194,12 @@ export function getFundraiserPlatforms() { return getData().fundraiserPlatforms;
 export function getFundraiserPlatformById(id) {
   return getData().fundraiserPlatforms.find(p => p.id === id) || null;
 }
+
+// ---------- FundraiserKind (admin-defined types beyond the built-in three) ----------
+export function addFundraiserKind({ name = '' } = {}) {
+  return addRecord(getData().fundraiserKinds, { name });
+}
+export function getFundraiserKinds() { return getData().fundraiserKinds; }
 
 // ---------- Fundraiser ----------
 export function addFundraiser({ kind = 'general', name = '', platformId = null,

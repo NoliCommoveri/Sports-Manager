@@ -1,7 +1,8 @@
 // communications.js — a small composer for the broadcasts the admin sends: a
 // weekly schedule digest (customizable per event type), a registration notice,
-// a blank News broadcast, and per-family overdue-fee notices. Below the
-// composer sits the per-parent quick-contact table.
+// a blank News broadcast, a fundraiser progress update (scoped by timeframe),
+// and per-family overdue-fee notices. Below the composer sits the per-parent
+// quick-contact table.
 //
 // Every panel is text-editable before sending: each draft lives in an editable
 // <textarea> that is the single source of truth for the outgoing text, seeded
@@ -15,8 +16,9 @@ import {
 } from '../data.js';
 import {
   buildWeeklyUpdateText, buildRegistrationText, buildNewsText,
-  buildOverdueFeeTemplate, renderFeeTemplate,
-  getUpcomingEventTypes, getAllParentEmails, mailtoLink, smsLink, copyToClipboard
+  buildFundraiserUpdateText, buildOverdueFeeTemplate, renderFeeTemplate,
+  getUpcomingEventTypes, FUNDRAISER_TIMEFRAMES, fundraiserTimeframeLabel,
+  getAllParentEmails, mailtoLink, smsLink, copyToClipboard
 } from '../messaging.js';
 import { getPlayersWithBalance } from '../selectors.js';
 import { eventTypeLabel } from '../event-types.js';
@@ -28,6 +30,7 @@ function teamName() { return getSettings().teamName?.trim() || 'Team'; }
 function weeklySubject() { return `${teamName()} Updates`; }
 function registrationSubject() { return `${teamName()} Registration`; }
 function newsSubject() { return `${teamName()} News`; }
+function fundraisersSubject() { return `${teamName()} Fundraiser Update`; }
 function feesSubject() { return `${teamName()} — Outstanding Balance`; }
 
 export function mount(container) {
@@ -37,6 +40,7 @@ export function mount(container) {
       <button type="button" class="comms-tab" data-mode="weekly" role="tab">Weekly Schedule</button>
       <button type="button" class="comms-tab" data-mode="registration" role="tab">Registration</button>
       <button type="button" class="comms-tab" data-mode="news" role="tab">News</button>
+      <button type="button" class="comms-tab" data-mode="fundraisers" role="tab">Fundraisers</button>
       <button type="button" class="comms-tab" data-mode="fees" role="tab">Overdue Fees</button>
     </div>
 
@@ -75,6 +79,22 @@ export function mount(container) {
       <span class="copy-feedback"></span>
     </section>
 
+    <section class="comms-panel" id="panel-fundraisers" role="tabpanel" hidden>
+      <h3>Fundraiser Update</h3>
+      <p class="muted">Shares fundraiser progress — dates, type, and amount raised.
+        Choose which fundraisers to include by timeframe, then edit the draft
+        below before sending.</p>
+      <fieldset class="type-filter">
+        <legend>Include fundraisers</legend>
+        <div id="fundraiser-timeframe-options"></div>
+      </fieldset>
+      <textarea id="fundraisers-text" rows="9"
+        aria-label="Fundraiser update message — edit before sending"></textarea>
+      <a id="fundraisers-email-btn" class="btn-link"></a>
+      <button type="button" class="copy-btn" data-target="fundraisers-text">Copy Message</button>
+      <span class="copy-feedback"></span>
+    </section>
+
     <section class="comms-panel" id="panel-fees" role="tabpanel" hidden>
       <h3>Overdue Fees</h3>
       <p class="muted">Each family is notified privately about their own balance —
@@ -108,6 +128,7 @@ export function mount(container) {
     weekly: container.querySelector('#panel-weekly'),
     registration: container.querySelector('#panel-registration'),
     news: container.querySelector('#panel-news'),
+    fundraisers: container.querySelector('#panel-fundraisers'),
     fees: container.querySelector('#panel-fees')
   };
   const weeklyTypeOptions = container.querySelector('#weekly-type-options');
@@ -117,6 +138,9 @@ export function mount(container) {
   const regEmailBtn = container.querySelector('#registration-email-btn');
   const newsText = container.querySelector('#news-text');
   const newsEmailBtn = container.querySelector('#news-email-btn');
+  const fundraiserTimeframeOptions = container.querySelector('#fundraiser-timeframe-options');
+  const fundraisersText = container.querySelector('#fundraisers-text');
+  const fundraisersEmailBtn = container.querySelector('#fundraisers-email-btn');
   const feesText = container.querySelector('#fees-text');
   const feesBody = container.querySelector('#fees-body');
   const contactsBody = container.querySelector('#contacts-body');
@@ -126,6 +150,8 @@ export function mount(container) {
   // The admin's explicit opt-outs. Storing opt-outs (not opt-ins) means a newly
   // scheduled event type is included by default the moment it appears.
   const excludedTypes = new Set();
+  // Same opt-out approach for the fundraiser update's future/active/past filter.
+  const excludedTimeframes = new Set();
 
   // ---- Email-all button plumbing (shared by the broadcast panels) ----
   function setEmailAllBtn(btn, subject, body) {
@@ -195,6 +221,40 @@ export function mount(container) {
     setEmailAllBtn(newsEmailBtn, newsSubject(), newsText.value);
   });
 
+  // ---- Fundraisers panel ----
+  function includedTimeframes() {
+    return FUNDRAISER_TIMEFRAMES.filter(t => !excludedTimeframes.has(t));
+  }
+
+  // (Re)draft the fundraiser update from the current timeframe selection.
+  // Called on first mount and whenever a timeframe checkbox toggles.
+  function seedFundraisers() {
+    fundraisersText.value = buildFundraiserUpdateText({ timeframes: includedTimeframes() });
+    setEmailAllBtn(fundraisersEmailBtn, fundraisersSubject(), fundraisersText.value);
+  }
+
+  // Fixed future/active/past buckets — rendered once (they never change with the
+  // data), unlike the weekly type list which is scoped to what's scheduled.
+  function renderFundraiserTimeframes() {
+    fundraiserTimeframeOptions.innerHTML = FUNDRAISER_TIMEFRAMES.map(t => `
+      <label class="check-label">
+        <input type="checkbox" class="fundraiser-timeframe" value="${t}"
+          ${excludedTimeframes.has(t) ? '' : 'checked'} />
+        ${fundraiserTimeframeLabel(t)}
+      </label>`).join('');
+  }
+
+  fundraiserTimeframeOptions.addEventListener('change', (e) => {
+    if (!e.target.classList.contains('fundraiser-timeframe')) return;
+    const t = e.target.value;
+    if (e.target.checked) excludedTimeframes.delete(t); else excludedTimeframes.add(t);
+    seedFundraisers();
+  });
+
+  fundraisersText.addEventListener('input', () => {
+    setEmailAllBtn(fundraisersEmailBtn, fundraisersSubject(), fundraisersText.value);
+  });
+
   // ---- Overdue Fees panel ----
   function seedFees() {
     feesText.value = buildOverdueFeeTemplate();
@@ -247,11 +307,13 @@ export function mount(container) {
   function currentSubject() {
     if (mode === 'registration') return registrationSubject();
     if (mode === 'news') return newsSubject();
+    if (mode === 'fundraisers') return fundraisersSubject();
     return weeklySubject();
   }
   function currentBody() {
     if (mode === 'registration') return regText.value;
     if (mode === 'news') return newsText.value;
+    if (mode === 'fundraisers') return fundraisersText.value;
     return weeklyText.value;
   }
 
@@ -313,12 +375,15 @@ export function mount(container) {
     setEmailAllBtn(weeklyEmailBtn, weeklySubject(), weeklyText.value);
     setEmailAllBtn(regEmailBtn, registrationSubject(), regText.value);
     setEmailAllBtn(newsEmailBtn, newsSubject(), newsText.value);
+    setEmailAllBtn(fundraisersEmailBtn, fundraisersSubject(), fundraisersText.value);
   }
 
   // One-time seeds, then the live render + subscription.
   seedWeekly();
   seedRegistration();
   seedNews();
+  renderFundraiserTimeframes();
+  seedFundraisers();
   seedFees();
   applyMode();
   const unsub = subscribe(render);
