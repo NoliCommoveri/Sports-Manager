@@ -1,7 +1,7 @@
 // messaging.js — mailto:/sms: link builders + weekly digest text. No localStorage access.
 import {
   getEvents, getSnackAssignmentsForEvent, getParentById,
-  getOpponentById, getParents
+  getOpponentById, getParents, getSettings
 } from './data.js';
 import { todayStr, addDaysStr } from './selectors.js';
 
@@ -38,7 +38,8 @@ export function buildWeeklyUpdateText(daysAhead = 7) {
     return line;
   });
 
-  return `Please see the following info for the upcoming week's practice and snack schedule:\n\n${lines.join('\n')}`;
+  const teamName = getSettings().teamName?.trim() || 'Team';
+  return `Hello ${teamName} Family, these are the important updates for this week:\n\n${lines.join('\n')}`;
 }
 
 export function getAllParentEmails() {
