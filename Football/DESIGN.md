@@ -68,7 +68,8 @@ files — see §13):
   js/
     data.js                  THE ONLY file that touches localStorage
     util.js                  escapeHtml, cents↔dollars helpers
-    selectors.js             pure derived reads (record, next event, staleness, dates)
+    selectors.js             pure derived reads (record, next event, staleness, dates, balances)
+    event-types.js           the event-type registry (labels/flags) — single source
     router.js                hash routing + mount/unmount lifecycle
     seed.js                  first-run defaults (fundraiser platforms)
     messaging.js             mailto/sms builders + weekly digest text
@@ -85,7 +86,7 @@ files — see §13):
       schedule.js            games + practices, upcoming/past split
       roster.js              players; filter/sort; "my player" star
       parents.js             parents + player links
-      communications.js      weekly digest broadcast + per-parent contact
+      communications.js      broadcast composer (weekly/registration/fees) + contacts
       snacks.js              snack duty per game
       fundraisers.js         fundraisers + occurrences + platforms
       settings.js            team info, backup/restore, export, help, danger zone
@@ -185,10 +186,12 @@ multiple parents)
 { "id","name","homeLocation":"","updatedAt" }
 ```
 
-**Event** (games *and* practices share one collection, discriminated by `type`)
+**Event** (games, practices *and* registrations share one collection,
+discriminated by `type`; the type list lives in `js/event-types.js`)
 ```jsonc
 { "id",
-  "type": "game" | "practice",
+  "type": "game" | "practice" | "registration",   // registry: js/event-types.js
+
   "date": "YYYY-MM-DD",
   "startTime": "HH:MM",
   "endTime": "" | "HH:MM",
@@ -391,9 +394,12 @@ inputs. Edits persist on `change` via the entity's `update*` helper.
 
 ### 9.1 team.js (`#/team`, default)
 Dashboard: team name + season, **W–L(–T) record** (`getTeamRecord`), **Next
-Game** and **Next Practice** (`getNextEventOfType`), and a **Needs Attention**
+Game** and **Next Practice** (`getNextEventOfType`), a **Needs Attention**
 card listing stale events/fundraisers with one-tap status fixes
-(`getStaleEvents`/`getStaleFundraisers`). Tolerant of missing opponents (`TBD`).
+(`getStaleEvents`/`getStaleFundraisers`), and an **Outstanding Fees** card
+(`getPlayersWithBalance`, hidden when none) that surfaces players who owe, each
+with a **Mark paid** button that zeroes the balance (`updatePlayer`, confirmed —
+the prior amount isn't kept). Tolerant of missing opponents (`TBD`).
 
 ### 9.2 roster.js (`#/roster`)
 Players with status filter (active/inactive/all, **active default**), position
@@ -402,24 +408,51 @@ filter, and sort (#, last name, position, balance ± direction). Position is a
 legacy/custom value on a record is preserved (rendered via a label map, kept in
 the option list so editing doesn't clobber it). "Follow" star sets
 `settings.myPlayerId` (highlighted app-wide). Balance edits go through
-`dollarsToCents`. Reads the wizard's `sessionStorage` flag to auto-open Add once.
+`dollarsToCents`; a **Mark paid** button (shown only when a balance is owed)
+zeroes it after a confirm. Reads the wizard's `sessionStorage` flag to auto-open
+Add once.
 
 ### 9.3 schedule.js (`#/schedule`)
-Unified games+practices, split **Upcoming** (ascending) / **Past**
+Unified games+practices+registrations, split **Upcoming** (ascending) / **Past**
 (most-recent-first) by `date < todayStr()`. Past-dated + still-`scheduled` rows
 are flagged (`⚠️`). New-opponent creation uses a styled `<dialog>` (not
-`prompt()`). Games expose opponent/score fields; practices don't. `type`/`status`
-label fallbacks are escaped (I-3).
+`prompt()`). Games expose opponent/score fields; other types don't. The type
+`<select>` (add form + inline edit) and the row label both come from the
+`event-types.js` registry, so adding a type there makes it schedulable with no
+edit here; an unknown legacy `type` on a record is preserved as an option and
+label-escaped (I-3).
 
 ### 9.4 parents.js (`#/parents`)
 Parents CRUD + link/unlink children via the `playerParents` join. Delete warns it
 also removes the parent's snack assignments.
 
 ### 9.5 communications.js (`#/communications`)
-Renders the **weekly digest** (`buildWeeklyUpdateText`, 7-day window) into a
-`<pre>` via `textContent`. **Email All** builds a multi-recipient `mailto:` from
-all parent emails; per-parent Email/Text rows build `mailto:`/`sms:` links
-(escaped in `href`). Copy-to-clipboard fallback for when no mail client is wired.
+A four-tab **composer** plus the per-parent **Parent Contacts** table. **Every
+panel is text-editable before sending** — each draft lives in an editable
+`<textarea>` that is the single source of truth for its outgoing text:
+
+- **Weekly Schedule** — `buildWeeklyUpdateText({daysAhead:7, types})`. A checkbox
+  per event type **present in the 7-day window** (scoped via
+  `getUpcomingEventTypes`) lets the admin include/exclude types; toggling one
+  deliberately re-seeds the draft. View-local opt-outs (Set of excluded types) —
+  a newly scheduled type is included by default.
+- **Registration** — `buildRegistrationText()` lists upcoming `registration`
+  events, or drops an editable template when none are scheduled.
+- **News** — `buildNewsText()`: a blank broadcast that pulls **no** data, just
+  the `Hello <Team> Families,` greeting for free-form typing.
+- **Overdue Fees** — `getPlayersWithBalance()` lists each player with a balance.
+  An **editable template** textarea (`buildOverdueFeeTemplate`) with `{player}`/
+  `{amount}` tokens is filled in per family by `renderFeeTemplate` at click time,
+  so each family's Email/Text link mentions **only that family's** balance.
+  Deliberately per-family, never a broadcast and never exported (I-9).
+
+**Email All** (the three broadcast tabs) builds a multi-recipient `mailto:` from
+all parent emails; every per-recipient link resolves its `href` from the live
+draft/template + balance **at click time**, escaped (I-3). **Parent Contacts**
+links use the draft of whichever tab is active (fees falls back to the weekly
+draft). Textareas are seeded once, then owned by edits; a data-change re-render
+refreshes the type list, fees table, and contacts but never clobbers a draft.
+Copy-to-clipboard fallback per broadcast panel.
 
 ### 9.6 snacks.js (`#/snacks`)
 **Games only** (by design). Flags upcoming games with no snack parent.
@@ -455,8 +488,19 @@ with **all FKs resolved tolerantly** (`(deleted parent)`, `(unknown)`).
 included in exports (it's the point of the handout).
 
 ### 10.2 messaging.js
-`buildWeeklyUpdateText(daysAhead=7)` — plain-text digest of upcoming
-events+snacks. `mailtoLink(emails, subject, body)` — recipients joined with
+`buildWeeklyUpdateText({daysAhead=7, types=null})` — plain-text digest of
+upcoming events+snacks; `types` (array of type values) scopes which event types
+appear, `null` = all in the window. `getUpcomingEventTypes(daysAhead)` — the
+distinct types present in that window, in registry order (drives the digest's
+type toggles). `buildRegistrationText({daysAhead=60})` — registration
+announcement (lists `registration` events or an editable template).
+`buildNewsText()` — a data-free blank broadcast (just the greeting).
+`buildOverdueFeeTemplate()` — the editable per-family fee template with
+`{player}`/`{amount}` tokens; `renderFeeTemplate(template, player)` substitutes
+them for one player.
+Event-line formatting is registry-driven (games keep opponent+snack detail;
+every other type renders from its label), so new types need no edit here.
+`mailtoLink(emails, subject, body)` — recipients joined with
 **literal commas** (encoding the comma breaks multi-recipient parsing);
 subject/body via `encodeURIComponent` (**not** `URLSearchParams`, which encodes
 spaces as `+` — `mailto:` needs `%20`). `smsLink` picks `&` vs `?` by iOS
@@ -470,7 +514,7 @@ detection. These encoding choices are load-bearing; don't "simplify" them.
   module + both vendored libs + all icons. If a module isn't listed, the app
   boots online (uncached fetch) but **404s offline**. Keep this list in sync with
   the `js/` tree (I-10).
-- **`CACHE_NAME`** (currently `stm-shell-v10`) — **bump it on every change to any
+- **`CACHE_NAME`** (currently `stm-shell-v11`) — **bump it on every change to any
   cached file**, or service-worker-controlled clients keep serving stale code.
   The `activate` handler deletes all caches whose name ≠ `CACHE_NAME`.
 - **Fetch strategy:** cache-first for shell URLs (safe because they're pinned per

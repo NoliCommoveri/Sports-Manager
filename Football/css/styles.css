@@ -502,7 +502,7 @@ dialog form input, dialog form select {
 }
 
 /* Communications */
-.weekly-update textarea {
+.comms-panel textarea {
   display: block;
   width: 100%;
   box-sizing: border-box;
@@ -519,6 +519,48 @@ dialog form input, dialog form select {
   font-size: 0.9rem;
   line-height: 1.4;
 }
+
+.comms-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-bottom: var(--gap);
+}
+
+.comms-tab {
+  background: var(--color-surface);
+  color: var(--color-primary);
+  border: 1px solid var(--color-border);
+}
+
+.comms-tab:hover { background: var(--color-bg); color: var(--color-primary); }
+
+.comms-tab.active {
+  background: var(--color-primary);
+  color: #fff;
+  border-color: var(--color-primary-dark);
+}
+
+.type-filter {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  padding: 8px 10px;
+  margin: 0 0 10px;
+}
+
+.type-filter legend {
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+  padding: 0 4px;
+}
+
+#weekly-type-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.fees-table td:nth-child(2) { white-space: nowrap; }
 
 .btn-link {
   display: inline-block;
@@ -538,7 +580,7 @@ dialog form input, dialog form select {
   pointer-events: none;
 }
 
-#copy-feedback {
+.copy-feedback {
   font-size: 0.85rem;
   color: var(--color-text-muted);
   margin-left: 8px;
@@ -627,6 +669,11 @@ dialog form input, dialog form select {
 .attn-row:last-child { border-bottom: none; }
 
 .attn-row span { flex: 1 1 auto; min-width: 200px; }
+
+/* Outstanding Fees card reuses .attn-row but sits on the plain surface, so
+   its row dividers use the normal border color rather than the warning tint. */
+.outstanding-fees h3 { margin-top: 0; }
+.outstanding-fees .attn-row { border-bottom-color: var(--color-border); }
 
 /* Roster controls */
 .roster-controls {
