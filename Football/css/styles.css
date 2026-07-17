@@ -670,6 +670,11 @@ dialog form input, dialog form select {
 
 .attn-row span { flex: 1 1 auto; min-width: 200px; }
 
+/* Outstanding Fees card reuses .attn-row but sits on the plain surface, so
+   its row dividers use the normal border color rather than the warning tint. */
+.outstanding-fees h3 { margin-top: 0; }
+.outstanding-fees .attn-row { border-bottom-color: var(--color-border); }
+
 /* Roster controls */
 .roster-controls {
   display: flex;

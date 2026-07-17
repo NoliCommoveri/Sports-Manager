@@ -394,9 +394,12 @@ inputs. Edits persist on `change` via the entity's `update*` helper.
 
 ### 9.1 team.js (`#/team`, default)
 Dashboard: team name + season, **W–L(–T) record** (`getTeamRecord`), **Next
-Game** and **Next Practice** (`getNextEventOfType`), and a **Needs Attention**
+Game** and **Next Practice** (`getNextEventOfType`), a **Needs Attention**
 card listing stale events/fundraisers with one-tap status fixes
-(`getStaleEvents`/`getStaleFundraisers`). Tolerant of missing opponents (`TBD`).
+(`getStaleEvents`/`getStaleFundraisers`), and an **Outstanding Fees** card
+(`getPlayersWithBalance`, hidden when none) that surfaces players who owe, each
+with a **Mark paid** button that zeroes the balance (`updatePlayer`, confirmed —
+the prior amount isn't kept). Tolerant of missing opponents (`TBD`).
 
 ### 9.2 roster.js (`#/roster`)
 Players with status filter (active/inactive/all, **active default**), position
@@ -405,7 +408,9 @@ filter, and sort (#, last name, position, balance ± direction). Position is a
 legacy/custom value on a record is preserved (rendered via a label map, kept in
 the option list so editing doesn't clobber it). "Follow" star sets
 `settings.myPlayerId` (highlighted app-wide). Balance edits go through
-`dollarsToCents`. Reads the wizard's `sessionStorage` flag to auto-open Add once.
+`dollarsToCents`; a **Mark paid** button (shown only when a balance is owed)
+zeroes it after a confirm. Reads the wizard's `sessionStorage` flag to auto-open
+Add once.
 
 ### 9.3 schedule.js (`#/schedule`)
 Unified games+practices+registrations, split **Upcoming** (ascending) / **Past**
@@ -509,7 +514,7 @@ detection. These encoding choices are load-bearing; don't "simplify" them.
   module + both vendored libs + all icons. If a module isn't listed, the app
   boots online (uncached fetch) but **404s offline**. Keep this list in sync with
   the `js/` tree (I-10).
-- **`CACHE_NAME`** (currently `stm-shell-v10`) — **bump it on every change to any
+- **`CACHE_NAME`** (currently `stm-shell-v11`) — **bump it on every change to any
   cached file**, or service-worker-controlled clients keep serving stale code.
   The `activate` handler deletes all caches whose name ≠ `CACHE_NAME`.
 - **Fetch strategy:** cache-first for shell URLs (safe because they're pinned per

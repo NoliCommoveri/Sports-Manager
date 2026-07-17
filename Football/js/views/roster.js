@@ -1,6 +1,6 @@
 // roster.js — list/add/edit/deactivate players, "my player" toggle.
 import {
-  getPlayers, addPlayer, updatePlayer, deletePlayer,
+  getPlayers, getPlayerById, addPlayer, updatePlayer, deletePlayer,
   getSettings, updateSettings, subscribe
 } from '../data.js';
 import { escapeHtml, centsToDollarsStr } from '../util.js';
@@ -189,7 +189,8 @@ export function mount(container) {
             <div class="field-row"><label>Balance</label>
               ${isEditing
                 ? `<span>$</span><input class="f-balance" type="number" step="0.01" value="${centsToDollarsStr(p.outstandingBalanceCents)}" />`
-                : `<span>$${centsToDollarsStr(p.outstandingBalanceCents)}</span>`}</div>
+                : `<span>$${centsToDollarsStr(p.outstandingBalanceCents)}</span>`}
+              ${(p.outstandingBalanceCents || 0) > 0 ? `<button class="paid-btn">Mark paid</button>` : ''}</div>
             <div class="field-row">
               <button class="edit-toggle">${isEditing ? 'Done' : 'Edit'}</button>
               <button class="delete-btn">Delete</button>
@@ -218,6 +219,12 @@ export function mount(container) {
     }
     if (e.target.classList.contains('delete-btn')) {
       if (confirm('Delete this player? This cannot be undone.')) deletePlayer(id);
+    }
+    if (e.target.classList.contains('paid-btn')) {
+      const p = getPlayerById(id);
+      if (p && confirm(`Mark $${centsToDollarsStr(p.outstandingBalanceCents)} as paid for ${`${p.firstName || ''} ${p.lastName || ''}`.trim() || 'this player'}? This sets their balance to $0.`)) {
+        updatePlayer(id, { outstandingBalanceCents: 0 });
+      }
     }
     if (e.target.classList.contains('expand-toggle')) {
       if (expandedIds.has(id)) {

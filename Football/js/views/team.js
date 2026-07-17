@@ -1,10 +1,13 @@
 // team.js — landing dashboard: season record, next game/practice, hygiene.
-import { getSettings, getOpponentById, updateEvent, updateFundraiser, subscribe }
-  from '../data.js';
 import {
-  getTeamRecord, getNextEventOfType, getStaleEvents, getStaleFundraisers
+  getSettings, getOpponentById, getPlayerById, updateEvent, updatePlayer,
+  updateFundraiser, subscribe
+} from '../data.js';
+import {
+  getTeamRecord, getNextEventOfType, getStaleEvents, getStaleFundraisers,
+  getPlayersWithBalance
 } from '../selectors.js';
-import { escapeHtml } from '../util.js';
+import { escapeHtml, centsToDollarsStr } from '../util.js';
 import { eventTypeLabel } from '../event-types.js';
 
 function fmtDate(d) {
@@ -37,6 +40,10 @@ export function mount(container) {
       <h3>⚠️ Needs Attention</h3>
       <div id="attention-body"></div>
     </section>
+    <section id="outstanding-fees" class="outstanding-fees" hidden>
+      <h3>💵 Outstanding Fees</h3>
+      <div id="fees-body"></div>
+    </section>
   `;
 
   const heading  = container.querySelector('#team-heading');
@@ -46,6 +53,8 @@ export function mount(container) {
   const practEl  = container.querySelector('#next-practice');
   const attnCard = container.querySelector('#needs-attention');
   const attnBody = container.querySelector('#attention-body');
+  const feesCard = container.querySelector('#outstanding-fees');
+  const feesBody = container.querySelector('#fees-body');
 
   function render() {
     const s = getSettings();
@@ -80,6 +89,25 @@ export function mount(container) {
     }
 
     renderNeedsAttention();
+    renderOutstandingFees();
+  }
+
+  function renderOutstandingFees() {
+    const players = getPlayersWithBalance();
+    if (!players.length) {
+      feesCard.hidden = true;
+      feesBody.innerHTML = '';
+      return;
+    }
+    feesCard.hidden = false;
+    feesBody.innerHTML = players.map(p => {
+      const name = `${p.firstName || ''} ${p.lastName || ''}`.trim() || '(unnamed)';
+      return `
+        <div class="attn-row fee-row" data-id="${p.id}">
+          <span>${escapeHtml(name)} — $${centsToDollarsStr(p.outstandingBalanceCents)}</span>
+          <button class="fee-paid-btn">Mark paid</button>
+        </div>`;
+    }).join('');
   }
 
   function renderNeedsAttention() {
@@ -141,7 +169,24 @@ export function mount(container) {
     }
   });
 
+  feesBody.addEventListener('click', (e) => {
+    if (!e.target.classList.contains('fee-paid-btn')) return;
+    const row = e.target.closest('.fee-row');
+    if (!row) return;
+    markPaid(row.dataset.id);
+  });
+
   const unsub = subscribe(render);
   render();
   return () => unsub();
+}
+
+// Zero a player's balance, confirming first since the prior amount isn't kept.
+function markPaid(id) {
+  const p = getPlayerById(id);
+  if (!p) return;
+  const name = `${p.firstName || ''} ${p.lastName || ''}`.trim() || 'this player';
+  if (confirm(`Mark $${centsToDollarsStr(p.outstandingBalanceCents)} as paid for ${name}? This sets their balance to $0.`)) {
+    updatePlayer(id, { outstandingBalanceCents: 0 });
+  }
 }
