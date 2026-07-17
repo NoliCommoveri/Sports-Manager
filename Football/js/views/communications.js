@@ -1,19 +1,21 @@
-// communications.js — a small composer for the three broadcasts the admin
-// sends: a weekly schedule digest (customizable per event type), a registration
-// notice, and per-family overdue-fee notices. Below the composer sits the
-// per-parent quick-contact table.
+// communications.js — a small composer for the broadcasts the admin sends: a
+// weekly schedule digest (customizable per event type), a registration notice,
+// a blank News broadcast, and per-family overdue-fee notices. Below the
+// composer sits the per-parent quick-contact table.
 //
-// Each message is drafted into an editable <textarea> (or, for fees, a mailto/
-// sms built at click time) — the textarea is the single source of truth for the
-// outgoing text, seeded once and thereafter owned by the admin's edits. Toggling
-// a control (a type checkbox) re-seeds deliberately; a data change never
-// clobbers an in-progress edit.
+// Every panel is text-editable before sending: each draft lives in an editable
+// <textarea> that is the single source of truth for the outgoing text, seeded
+// once and thereafter owned by the admin's edits. The Fees panel's textarea is
+// a template whose {player}/{amount} tokens are filled in per family at click
+// time. Toggling a weekly type checkbox deliberately re-seeds that draft; a
+// data-change re-render never clobbers an in-progress edit.
 import {
   getParents, getSettings, getPlayerById,
   getPlayerParentsForPlayer, getParentById, subscribe
 } from '../data.js';
 import {
-  buildWeeklyUpdateText, buildRegistrationText, buildOverdueFeeText,
+  buildWeeklyUpdateText, buildRegistrationText, buildNewsText,
+  buildOverdueFeeTemplate, renderFeeTemplate,
   getUpcomingEventTypes, getAllParentEmails, mailtoLink, smsLink, copyToClipboard
 } from '../messaging.js';
 import { getPlayersWithBalance } from '../selectors.js';
@@ -25,6 +27,7 @@ const WEEKLY_DAYS = 7;
 function teamName() { return getSettings().teamName?.trim() || 'Team'; }
 function weeklySubject() { return `${teamName()} Updates`; }
 function registrationSubject() { return `${teamName()} Registration`; }
+function newsSubject() { return `${teamName()} News`; }
 function feesSubject() { return `${teamName()} — Outstanding Balance`; }
 
 export function mount(container) {
@@ -33,6 +36,7 @@ export function mount(container) {
     <div class="comms-tabs" role="tablist">
       <button type="button" class="comms-tab" data-mode="weekly" role="tab">Weekly Schedule</button>
       <button type="button" class="comms-tab" data-mode="registration" role="tab">Registration</button>
+      <button type="button" class="comms-tab" data-mode="news" role="tab">News</button>
       <button type="button" class="comms-tab" data-mode="fees" role="tab">Overdue Fees</button>
     </div>
 
@@ -60,10 +64,24 @@ export function mount(container) {
       <span class="copy-feedback"></span>
     </section>
 
+    <section class="comms-panel" id="panel-news" role="tabpanel" hidden>
+      <h3>News</h3>
+      <p class="muted">A blank broadcast — no schedule or data pulled in, just a greeting
+        to start from. Type whatever you like.</p>
+      <textarea id="news-text" rows="9"
+        aria-label="News message — edit before sending"></textarea>
+      <a id="news-email-btn" class="btn-link"></a>
+      <button type="button" class="copy-btn" data-target="news-text">Copy Message</button>
+      <span class="copy-feedback"></span>
+    </section>
+
     <section class="comms-panel" id="panel-fees" role="tabpanel" hidden>
       <h3>Overdue Fees</h3>
       <p class="muted">Each family is notified privately about their own balance —
-        amounts are never broadcast to the whole team.</p>
+        amounts are never broadcast to the whole team. Edit the message below;
+        <code>{player}</code> and <code>{amount}</code> are filled in per family.</p>
+      <textarea id="fees-text" rows="7"
+        aria-label="Overdue fee message — edit before sending"></textarea>
       <div class="table-scroll">
         <table class="contacts-table fees-table">
           <thead><tr><th>Player</th><th>Balance</th><th>Notify</th></tr></thead>
@@ -74,6 +92,7 @@ export function mount(container) {
 
     <section class="contacts-section">
       <h3>Parent Contacts</h3>
+      <p class="muted">Email/Text uses the draft from the tab you're on above.</p>
       <div class="table-scroll">
         <table class="contacts-table">
           <thead><tr><th>Name</th><th></th><th></th></tr></thead>
@@ -88,6 +107,7 @@ export function mount(container) {
   const panels = {
     weekly: container.querySelector('#panel-weekly'),
     registration: container.querySelector('#panel-registration'),
+    news: container.querySelector('#panel-news'),
     fees: container.querySelector('#panel-fees')
   };
   const weeklyTypeOptions = container.querySelector('#weekly-type-options');
@@ -95,6 +115,9 @@ export function mount(container) {
   const weeklyEmailBtn = container.querySelector('#weekly-email-btn');
   const regText = container.querySelector('#registration-text');
   const regEmailBtn = container.querySelector('#registration-email-btn');
+  const newsText = container.querySelector('#news-text');
+  const newsEmailBtn = container.querySelector('#news-email-btn');
+  const feesText = container.querySelector('#fees-text');
   const feesBody = container.querySelector('#fees-body');
   const contactsBody = container.querySelector('#contacts-body');
 
@@ -104,7 +127,7 @@ export function mount(container) {
   // scheduled event type is included by default the moment it appears.
   const excludedTypes = new Set();
 
-  // ---- Email-all button plumbing (shared by the two broadcast panels) ----
+  // ---- Email-all button plumbing (shared by the broadcast panels) ----
   function setEmailAllBtn(btn, subject, body) {
     const emails = getAllParentEmails();
     btn.href = mailtoLink(emails, subject, body);
@@ -162,7 +185,21 @@ export function mount(container) {
     setEmailAllBtn(regEmailBtn, registrationSubject(), regText.value);
   });
 
+  // ---- News panel ----
+  function seedNews() {
+    newsText.value = buildNewsText();
+    setEmailAllBtn(newsEmailBtn, newsSubject(), newsText.value);
+  }
+
+  newsText.addEventListener('input', () => {
+    setEmailAllBtn(newsEmailBtn, newsSubject(), newsText.value);
+  });
+
   // ---- Overdue Fees panel ----
+  function seedFees() {
+    feesText.value = buildOverdueFeeTemplate();
+  }
+
   function renderFees() {
     const players = getPlayersWithBalance();
     feesBody.innerHTML = players.map(p => {
@@ -191,19 +228,33 @@ export function mount(container) {
     }).join('') || '<tr><td colspan="3">No outstanding balances. 🎉</td></tr>';
   }
 
-  // Resolve the per-family fee link from the live balance at click time.
+  // Resolve the per-family fee link from the live (edited) template + balance
+  // at click time.
   feesBody.addEventListener('click', (e) => {
     const link = e.target.closest('a[data-action]');
     if (!link) return;
     const player = getPlayerById(link.dataset.player);
     if (!player) return;
-    const msg = buildOverdueFeeText(player);
+    const msg = renderFeeTemplate(feesText.value, player);
     link.href = link.dataset.action === 'fee-email'
       ? mailtoLink(link.dataset.email, feesSubject(), msg)
       : smsLink(link.dataset.phone, msg);
   });
 
-  // ---- Parent contacts (unchanged behavior) ----
+  // ---- Parent contacts ----
+  // Body/subject follow the tab the admin is composing on (fees has no single
+  // broadcast body, so it falls back to the weekly draft).
+  function currentSubject() {
+    if (mode === 'registration') return registrationSubject();
+    if (mode === 'news') return newsSubject();
+    return weeklySubject();
+  }
+  function currentBody() {
+    if (mode === 'registration') return regText.value;
+    if (mode === 'news') return newsText.value;
+    return weeklyText.value;
+  }
+
   function renderContacts() {
     const parents = getParents();
     contactsBody.innerHTML = parents.map(p => `
@@ -215,14 +266,12 @@ export function mount(container) {
     `).join('') || '<tr><td colspan="3">No parents yet.</td></tr>';
   }
 
-  // Per-parent links use the current weekly draft as the body (the message the
-  // admin is most likely mid-composing), resolved at click time.
   contactsBody.addEventListener('click', (e) => {
     const link = e.target.closest('a[data-action]');
     if (!link) return;
-    const msg = weeklyText.value;
+    const msg = currentBody();
     link.href = link.dataset.action === 'email'
-      ? mailtoLink(link.dataset.email, weeklySubject(), msg)
+      ? mailtoLink(link.dataset.email, currentSubject(), msg)
       : smsLink(link.dataset.phone, msg);
   });
 
@@ -233,9 +282,7 @@ export function mount(container) {
       b.classList.toggle('active', on);
       b.setAttribute('aria-selected', String(on));
     });
-    panels.weekly.hidden = mode !== 'weekly';
-    panels.registration.hidden = mode !== 'registration';
-    panels.fees.hidden = mode !== 'fees';
+    Object.entries(panels).forEach(([name, el]) => { el.hidden = name !== mode; });
   }
 
   tabsEl.addEventListener('click', (e) => {
@@ -265,11 +312,14 @@ export function mount(container) {
     renderContacts();
     setEmailAllBtn(weeklyEmailBtn, weeklySubject(), weeklyText.value);
     setEmailAllBtn(regEmailBtn, registrationSubject(), regText.value);
+    setEmailAllBtn(newsEmailBtn, newsSubject(), newsText.value);
   }
 
   // One-time seeds, then the live render + subscription.
   seedWeekly();
   seedRegistration();
+  seedNews();
+  seedFees();
   applyMode();
   const unsub = subscribe(render);
   render();

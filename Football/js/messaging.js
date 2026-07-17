@@ -92,16 +92,29 @@ export function buildRegistrationText({ daysAhead = DEFAULT_REGISTRATION_DAYS } 
   return `${greeting}\n\nRegistration is open — please complete it on the date(s) below:\n\n${lines.join('\n')}`;
 }
 
-// Private, per-family overdue-fees notice. Mentions only this player's balance
-// so the message can go to that player's own parents (I-9: never broadcast the
-// whole team's balances, never exported).
-export function buildOverdueFeeText(player) {
-  const name = `${player.firstName || ''} ${player.lastName || ''}`.trim() || 'your player';
-  const amount = centsToDollarsStr(player.outstandingBalanceCents);
+// A blank broadcast: just the greeting, no data pulled. The admin types the
+// rest. "Families" (plural) per the News tab's copy.
+export function buildNewsText() {
+  return `Hello ${teamName()} Families,\n\n`;
+}
+
+// Editable template for the per-family overdue-fees notice. `{player}` and
+// `{amount}` are substituted per family at send time (see renderFeeTemplate),
+// so the admin can reword the message once and it applies to every family.
+export function buildOverdueFeeTemplate() {
   return `Hello ${teamName()} Family,\n\n`
-    + `Our records show an outstanding balance of $${amount} for ${name}. `
+    + `Our records show an outstanding balance of {amount} for {player}. `
     + `Please arrange payment at your earliest convenience, or reach out if you have any questions.\n\n`
     + `Thank you!`;
+}
+
+// Fill a fee template for one player. Mentions only this player's balance so
+// the message can go to that player's own parents (I-9: never broadcast the
+// whole team's balances, never exported).
+export function renderFeeTemplate(template, player) {
+  const name = `${player.firstName || ''} ${player.lastName || ''}`.trim() || 'your player';
+  const amount = `$${centsToDollarsStr(player.outstandingBalanceCents)}`;
+  return String(template).replaceAll('{player}', name).replaceAll('{amount}', amount);
 }
 
 export function getAllParentEmails() {

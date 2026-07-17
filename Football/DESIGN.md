@@ -422,26 +422,32 @@ Parents CRUD + link/unlink children via the `playerParents` join. Delete warns i
 also removes the parent's snack assignments.
 
 ### 9.5 communications.js (`#/communications`)
-A three-tab **composer** plus the per-parent **Parent Contacts** table:
+A four-tab **composer** plus the per-parent **Parent Contacts** table. **Every
+panel is text-editable before sending** — each draft lives in an editable
+`<textarea>` that is the single source of truth for its outgoing text:
 
-- **Weekly Schedule** — `buildWeeklyUpdateText({daysAhead:7, types})` drafted into
-  an editable `<textarea>`. A checkbox per event type **present in the 7-day
-  window** (scoped via `getUpcomingEventTypes`) lets the admin include/exclude
-  types; toggling one deliberately re-seeds the draft. View-local opt-outs
-  (Set of excluded types) — a newly scheduled type is included by default.
+- **Weekly Schedule** — `buildWeeklyUpdateText({daysAhead:7, types})`. A checkbox
+  per event type **present in the 7-day window** (scoped via
+  `getUpcomingEventTypes`) lets the admin include/exclude types; toggling one
+  deliberately re-seeds the draft. View-local opt-outs (Set of excluded types) —
+  a newly scheduled type is included by default.
 - **Registration** — `buildRegistrationText()` lists upcoming `registration`
   events, or drops an editable template when none are scheduled.
-- **Overdue Fees** — `getPlayersWithBalance()` lists each player with a balance
-  and per-family Email/Text links whose body (`buildOverdueFeeText`) mentions
-  **only that family's** balance. Deliberately per-family, never a broadcast and
-  never exported (I-9).
+- **News** — `buildNewsText()`: a blank broadcast that pulls **no** data, just
+  the `Hello <Team> Families,` greeting for free-form typing.
+- **Overdue Fees** — `getPlayersWithBalance()` lists each player with a balance.
+  An **editable template** textarea (`buildOverdueFeeTemplate`) with `{player}`/
+  `{amount}` tokens is filled in per family by `renderFeeTemplate` at click time,
+  so each family's Email/Text link mentions **only that family's** balance.
+  Deliberately per-family, never a broadcast and never exported (I-9).
 
-**Email All** (weekly/registration) builds a multi-recipient `mailto:` from all
-parent emails; every per-recipient link resolves its `href` from the live
-draft/balance **at click time**, escaped (I-3). The `<textarea>` is the single
-source of truth for the outgoing text — seeded once, then owned by edits; a
-data-change re-render refreshes the type list, fees table, and contacts but
-never clobbers a draft. Copy-to-clipboard fallback per broadcast panel.
+**Email All** (the three broadcast tabs) builds a multi-recipient `mailto:` from
+all parent emails; every per-recipient link resolves its `href` from the live
+draft/template + balance **at click time**, escaped (I-3). **Parent Contacts**
+links use the draft of whichever tab is active (fees falls back to the weekly
+draft). Textareas are seeded once, then owned by edits; a data-change re-render
+refreshes the type list, fees table, and contacts but never clobbers a draft.
+Copy-to-clipboard fallback per broadcast panel.
 
 ### 9.6 snacks.js (`#/snacks`)
 **Games only** (by design). Flags upcoming games with no snack parent.
@@ -483,7 +489,10 @@ appear, `null` = all in the window. `getUpcomingEventTypes(daysAhead)` — the
 distinct types present in that window, in registry order (drives the digest's
 type toggles). `buildRegistrationText({daysAhead=60})` — registration
 announcement (lists `registration` events or an editable template).
-`buildOverdueFeeText(player)` — a single family's private balance notice.
+`buildNewsText()` — a data-free blank broadcast (just the greeting).
+`buildOverdueFeeTemplate()` — the editable per-family fee template with
+`{player}`/`{amount}` tokens; `renderFeeTemplate(template, player)` substitutes
+them for one player.
 Event-line formatting is registry-driven (games keep opponent+snack detail;
 every other type renders from its label), so new types need no edit here.
 `mailtoLink(emails, subject, body)` — recipients joined with
