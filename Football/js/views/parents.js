@@ -1,9 +1,11 @@
 // parents.js — CRUD parents and playerParents links.
 import {
-  getParents, addParent, updateParent, deleteParent,
+  getParents, getParentById, addParent, updateParent, deleteParent,
   getPlayers, getPlayerParentsForParent, addPlayerParent, deletePlayerParent,
-  subscribe
+  exportParentBundle, subscribe
 } from '../data.js';
+import { smsLink, mailtoLink, teamName } from '../messaging.js';
+import { bundleToHashUrl, parentAppBaseUrl } from '../parent-link.js';
 import { escapeHtml } from '../util.js';
 
 export function mount(container) {
@@ -75,6 +77,18 @@ export function mount(container) {
                 <button class="edit-toggle">${isEditing ? 'Done' : 'Edit'}</button>
                 <button class="delete-btn">Delete</button>
               </div>
+              <div class="field-row">
+                <button class="send-link-btn" ${(p.phone || p.email) ? '' : 'disabled'}
+                  title="${(p.phone || p.email) ? '' : 'Add a phone or email for this parent first'}">
+                  📨 Send family link
+                </button>
+                <span class="send-link-status"></span>
+              </div>
+              <p class="warning send-link-warning">
+                ⚠️ This link contains this family's own schedule, snack duty, and
+                balance. Only send it to ${escapeHtml(p.name) || 'this parent'} —
+                it's addressed to them.
+              </p>
             </div>
           </td>
         </tr>`;
@@ -87,7 +101,7 @@ export function mount(container) {
     el.style.height = el.scrollHeight + 'px';
   }
 
-  tbody.addEventListener('click', (e) => {
+  tbody.addEventListener('click', async (e) => {
     const row = e.target.closest('tr');
     if (!row) return;
     const id = row.dataset.id;
@@ -110,7 +124,46 @@ export function mount(container) {
       if (editingIds.has(id)) editingIds.delete(id); else editingIds.add(id);
       render();
     }
+    if (e.target.classList.contains('send-link-btn')) {
+      await sendFamilyLink(id, e.target);
+    }
   });
+
+  // Builds this parent's bundle and compresses it into a Parent App link
+  // (§2/§3.2 of PARENT-APP-SPEC.md), then renders it as a plain tappable
+  // link rather than auto-navigating: the compression is async, and
+  // reassigning window.location.href after an `await` can silently lose
+  // iOS Safari's user-activation context for a custom-scheme (sms:/mailto:)
+  // navigation. A real <a href> the admin taps themselves is a fresh,
+  // synchronous gesture on that element — the same pattern communications.js
+  // already uses for its Email/Text links — so it can't hit that failure mode.
+  async function sendFamilyLink(parentId, btn) {
+    const parent = getParentById(parentId);
+    if (!parent) return;
+    const statusEl = btn.closest('.field-row')?.querySelector('.send-link-status');
+    btn.disabled = true;
+    if (statusEl) { statusEl.innerHTML = ''; statusEl.textContent = 'Building link…'; }
+    try {
+      const bundle = exportParentBundle(parentId);
+      const url = await bundleToHashUrl(bundle, parentAppBaseUrl());
+      const body = `Your ${teamName()} family info: ${url}`;
+      const link = parent.phone
+        ? smsLink(parent.phone, body)
+        : mailtoLink(parent.email, `${teamName()} Family Info`, body);
+      if (statusEl) {
+        statusEl.textContent = '';
+        const anchor = document.createElement('a');
+        anchor.href = link;
+        anchor.className = 'btn-link';
+        anchor.textContent = parent.phone ? 'Tap to open Text Message' : 'Tap to open Email';
+        statusEl.appendChild(anchor);
+      }
+    } catch (err) {
+      if (statusEl) statusEl.textContent = 'Could not build the link. ' + err.message;
+    } finally {
+      btn.disabled = !(parent.phone || parent.email);
+    }
+  }
 
   tbody.addEventListener('input', (e) => {
     if (e.target.classList.contains('f-name')) autoSizeName(e.target);

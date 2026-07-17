@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>Team Parent App</title>
+  <link rel="manifest" href="./manifest.webmanifest" />
+  <meta name="theme-color" content="#011325" />
+  <link rel="icon" type="image/png" sizes="16x16" href="./icons/icon-16x16.png" />
+  <link rel="icon" type="image/png" sizes="32x32" href="./icons/icon-32x32.png" />
+  <link rel="icon" type="image/png" sizes="192x192" href="./icons/icon-192x192.png" />
+  <link rel="apple-touch-icon" sizes="152x152" href="./icons/icon-152x152.png" />
+  <link rel="apple-touch-icon" sizes="167x167" href="./icons/icon-167x167.png" />
+  <link rel="apple-touch-icon" sizes="180x180" href="./icons/icon-180x180.png" />
+  <link rel="stylesheet" href="./css/styles.css" />
+</head>
+<body>
+  <div id="browser-tab-banner" hidden></div>
+  <header>
+    <h1 id="app-title">Team Parent App</h1>
+    <nav id="main-nav">
+      <a href="#/home">Home</a>
+      <a href="#/schedule">Schedule</a>
+      <a href="#/balance">Balance</a>
+      <a href="#/fundraisers">Fundraisers</a>
+    </nav>
+  </header>
+  <div id="import-banner" class="error-banner import-banner" hidden></div>
+  <main id="outlet">Loading…</main>
+
+  <script type="module">
+    import { boot } from './js/app.js';
+    boot();
+
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('./sw.js');
+    }
+  </script>
+</body>
+</html>

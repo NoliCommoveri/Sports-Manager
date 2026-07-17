@@ -1,0 +1,300 @@
+/* Parent App styles — vanilla CSS, no build step, no frameworks.
+   Shares the admin app's design tokens for a consistent look. */
+
+:root {
+  --color-bg: #f4f6f8;
+  --color-surface: #ffffff;
+  --color-border: #d7dce1;
+  --color-text: #1f2933;
+  --color-text-muted: #5a6472;
+  --color-primary: #1f6f43;
+  --color-primary-dark: #164e30;
+  --color-accent: #d97706;
+  --color-accent-bg: #fdf1e3;
+  --color-danger: #b91c1c;
+  --color-warning-bg: #fff3cd;
+  --color-warning-border: #f0c76a;
+  --radius: 6px;
+  --gap: 12px;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  background: var(--color-bg);
+  color: var(--color-text);
+  line-height: 1.4;
+}
+
+h1, h2, h3 { line-height: 1.2; }
+
+header {
+  background: var(--color-primary);
+  color: #fff;
+  padding: calc(env(safe-area-inset-top) + 12px) 20px 12px;
+}
+
+header h1 {
+  margin: 0 0 8px;
+  font-size: 1.3rem;
+  text-align: center;
+}
+
+#main-nav {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 4px;
+}
+
+#main-nav a {
+  color: #fff;
+  text-decoration: none;
+  padding: 6px 12px;
+  border-radius: var(--radius);
+  font-size: 0.9rem;
+  opacity: 0.85;
+}
+
+#main-nav a:hover { background: rgba(255, 255, 255, 0.12); opacity: 1; }
+
+#main-nav a.active {
+  background: rgba(255, 255, 255, 0.22);
+  opacity: 1;
+  font-weight: 600;
+}
+
+#browser-tab-banner {
+  background: var(--color-warning-bg);
+  border-bottom: 1px solid var(--color-warning-border);
+  color: #7a5b00;
+  padding: 10px 20px;
+  font-size: 0.85rem;
+  text-align: center;
+}
+
+#outlet {
+  max-width: 700px;
+  margin: 0 auto;
+  padding: 20px 20px calc(env(safe-area-inset-bottom) + 20px);
+}
+
+@media (max-width: 480px) {
+  #outlet { padding: 12px 12px calc(env(safe-area-inset-bottom) + 12px); }
+}
+
+section, .fundraiser-card, .child-card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  padding: var(--gap);
+  margin-bottom: var(--gap);
+}
+
+.freshness-stamp {
+  color: var(--color-text-muted);
+  font-size: 0.85rem;
+  margin: 0 0 var(--gap);
+  text-align: center;
+}
+
+.muted { color: var(--color-text-muted); margin: 0; }
+
+/* Home dashboard */
+.dashboard-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: var(--gap);
+  margin-bottom: var(--gap);
+}
+
+.dashboard-cards section { margin-bottom: 0; }
+
+.dashboard-cards h3 {
+  margin: 0 0 6px;
+  font-size: 0.9rem;
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.record-card { text-align: center; }
+
+.big-stat { font-size: 2rem; font-weight: 700; margin: 0; }
+
+.vs-line { font-size: 1.05rem; margin: 0 0 4px; }
+
+.when-line, .loc-line {
+  margin: 0 0 2px;
+  color: var(--color-text-muted);
+  font-size: 0.9rem;
+}
+
+.registration-banner {
+  border-color: var(--color-warning-border);
+  background: var(--color-warning-bg);
+  color: #7a5b00;
+}
+
+.registration-banner h3 { margin-top: 0; }
+.registration-banner .when-line, .registration-banner .loc-line { color: inherit; }
+
+.announcement-section h3 { margin-top: 0; }
+.announcement-text {
+  white-space: pre-wrap;
+  word-break: break-word;
+  margin: 0;
+}
+
+/* Tables */
+.table-scroll {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  margin-bottom: var(--gap);
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  margin-bottom: var(--gap);
+}
+
+.table-scroll table { margin-bottom: 0; }
+
+th, td {
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--color-border);
+  text-align: left;
+  vertical-align: middle;
+}
+
+th {
+  background: #eef1f4;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--color-text-muted);
+}
+
+tr:last-child td { border-bottom: none; }
+
+tr.snack-duty-row { background: var(--color-accent-bg); }
+
+.snack-duty-badge {
+  display: inline-block;
+  background: var(--color-accent);
+  color: #fff;
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+tr.event-canceled td, tr.event-past td { color: var(--color-text-muted); }
+
+/* Balance */
+.child-card {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--gap);
+}
+
+.child-name { font-weight: 600; }
+.child-meta { color: var(--color-text-muted); font-size: 0.85rem; }
+.child-balance { font-size: 1.3rem; font-weight: 700; }
+.child-balance.zero { color: var(--color-primary); }
+.child-balance.owed { color: var(--color-danger); }
+
+.balance-total {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-size: 1.1rem;
+  font-weight: 700;
+  border-top: 2px solid var(--color-border);
+  padding-top: var(--gap);
+  margin-top: var(--gap);
+}
+
+/* Fundraisers */
+.progress-bar {
+  height: 10px;
+  background: #e5e9ec;
+  border-radius: 5px;
+  overflow: hidden;
+  margin: 8px 0;
+}
+
+.progress-fill {
+  height: 100%;
+  background: var(--color-primary);
+}
+
+.fundraiser-card h3 { margin: 0 0 4px; }
+.fundraiser-stats { color: var(--color-text-muted); font-size: 0.9rem; margin: 0; }
+.fundraiser-dates { color: var(--color-text-muted); font-size: 0.85rem; margin: 4px 0 0; }
+
+/* Empty / error states */
+.empty-state {
+  text-align: center;
+  padding: 40px 20px;
+  color: var(--color-text-muted);
+}
+
+.empty-state .empty-icon { font-size: 2.5rem; margin-bottom: 8px; }
+
+.warning {
+  color: #7a5b00;
+  background: var(--color-warning-bg);
+  border: 1px solid var(--color-warning-border);
+  border-radius: var(--radius);
+  padding: 8px 10px;
+  font-size: 0.85rem;
+}
+
+.error-banner {
+  color: var(--color-danger);
+  background: #fdecea;
+  border: 1px solid var(--color-danger);
+  border-radius: var(--radius);
+  padding: 8px 10px;
+  font-size: 0.9rem;
+  margin-bottom: var(--gap);
+}
+
+.import-banner { margin: 12px 20px 0; }
+
+.paid-up {
+  margin-top: var(--gap);
+  color: var(--color-primary-dark);
+  background: #eaf6ee;
+  border-color: #b7dfc4;
+}
+
+/* Buttons (only used by iOS install copy / dismiss actions — no mutation UI) */
+button {
+  cursor: pointer;
+  font: inherit;
+  background: var(--color-primary);
+  color: #fff;
+  border: 1px solid var(--color-primary-dark);
+  border-radius: var(--radius);
+  padding: 6px 12px;
+}
+
+button:hover { background: var(--color-primary-dark); }
+
+.btn-secondary {
+  background: none;
+  border: 1px solid var(--color-primary);
+  color: var(--color-primary);
+}
+.btn-secondary:hover { background: var(--color-primary); color: #fff; }

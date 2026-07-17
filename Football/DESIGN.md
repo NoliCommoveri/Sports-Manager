@@ -46,7 +46,7 @@ app still appears to work.
 | **I-6** | **Every view honors the mount contract:** `mount(containerEl)` subscribes and returns an unmount function that unsubscribes. No orphaned subscriptions. |
 | **I-7** | **Missing foreign keys never throw.** A deleted parent/opponent/player renders as a placeholder string (`(deleted parent)`, `TBD`, `(unknown)`) everywhere it's referenced. |
 | **I-8** | **All load paths route through `migrate()`**, and `SCHEMA_VERSION` matches what `migrate()` can actually produce from every older version (including hand-built files). Any change to the stored shape **requires** bumping `SCHEMA_VERSION` and adding a `migrate()` branch. |
-| **I-9** | `Player.outstandingBalanceCents` appears in **no** export format. It's private and not for the schedule handout. |
+| **I-9** | `Player.outstandingBalanceCents` appears in **no team-wide export** (schedule .xlsx/.pdf, digests). It may appear in a **per-parent bundle** (`exportParentBundle`), and then **only for that parent's own child(ren)**. The team-wide schedule exports in `export.js` still must never include it. |
 | **I-10** | The SW `SHELL_FILES` list matches reality: every listed path exists at that exact name, and every module the app needs to boot offline is listed. Bump `CACHE_NAME` whenever any cached file changes. (`cache.addAll` is atomic — one 404 caches nothing.) |
 
 ---
@@ -113,7 +113,7 @@ architecture.
 
 ## 5. Data model / schema
 
-**Storage key:** `stm:v1` (a single JSON object). **`SCHEMA_VERSION`: `3`.**
+**Storage key:** `stm:v1` (a single JSON object). **`SCHEMA_VERSION`: `4`.**
 
 The key name is fixed and version-independent; the *version* is the
 `schemaVersion` field inside the JSON, not the key. Do **not** rename the key to
@@ -123,7 +123,7 @@ migrate — bump `schemaVersion` and extend `migrate()`.
 
 ```jsonc
 {
-  "schemaVersion": 3,
+  "schemaVersion": 4,
   "meta": {
     "lastModifiedAt": "ISO-8601 string | null",   // stamped by saveData()
     "lastBackupAt":   "ISO-8601 string | null",   // stamped by exportBackup()
@@ -133,7 +133,9 @@ migrate — bump `schemaVersion` and extend `migrate()`.
     "teamName":     "",            // free text
     "season":       "",            // free text, e.g. "Fall 2026"
     "myPlayerId":   null,          // Player.id highlighted app-wide, or null
-    "hasSeenWizard": false         // false → first-run wizard auto-opens (added in v3)
+    "hasSeenWizard": false,        // false → first-run wizard auto-opens (added in v3)
+    "parentAnnouncement": ""       // free text shown on every family's Parent App
+                                    // Home tab; empty hides it (added in v4)
   },
   "players":              [ /* Player */ ],
   "parents":              [ /* Parent */ ],
@@ -166,7 +168,7 @@ migrate — bump `schemaVersion` and extend `migrate()`.
   "jerseyNumber": "string",          // string, not number — allows "" and legacy values
   "position": "string",              // position CODE (see §9.2), free-text tolerated
   "active": true,
-  "outstandingBalanceCents": 0,      // int cents; NEVER exported (I-9)
+  "outstandingBalanceCents": 0,      // int cents; never in a team-wide export (I-9)
   "updatedAt": "ISO" }
 ```
 
@@ -300,6 +302,7 @@ migrate(data):
   data.settings ??= {}
   if schemaVersion < 2: add meta.changesSinceBackup; → 2
   if schemaVersion < 3: settings.hasSeenWizard ??= true; fundraiserKinds ??= []; → 3
+  if schemaVersion < 4: settings.parentAnnouncement ??= ''; → 4
   return data
 ```
 

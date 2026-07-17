@@ -32,6 +32,13 @@ export function mount(container) {
       </div>
     </section>
 
+    <section class="announcement-section">
+      <h3>Parent App Announcement</h3>
+      <p class="muted">Shown on every family's Home tab until you change it. Leave blank to hide it.</p>
+      <textarea id="parent-announcement" rows="3"
+        aria-label="Parent App announcement — shown to every family"></textarea>
+    </section>
+
     <section class="backup-section">
       <h3>Backup</h3>
       <p id="last-backup-status"></p>
@@ -114,6 +121,7 @@ export function mount(container) {
 
   const teamInput = container.querySelector('#team-name');
   const seasonInput = container.querySelector('#season');
+  const announcementInput = container.querySelector('#parent-announcement');
   const statusEl = container.querySelector('#last-backup-status');
   const exportBtn = container.querySelector('#export-backup-btn');
   const importInput = container.querySelector('#import-backup-input');
@@ -139,6 +147,7 @@ export function mount(container) {
     const s = getSettings();
     if (document.activeElement !== teamInput) teamInput.value = s.teamName;
     if (document.activeElement !== seasonInput) seasonInput.value = s.season;
+    if (document.activeElement !== announcementInput) announcementInput.value = s.parentAnnouncement || '';
 
     const { meta } = getData();
     if (!meta.lastBackupAt) {
@@ -161,6 +170,8 @@ export function mount(container) {
 
   teamInput.addEventListener('change', () => updateSettings({ teamName: teamInput.value }));
   seasonInput.addEventListener('change', () => updateSettings({ season: seasonInput.value }));
+  announcementInput.addEventListener('change', () =>
+    updateSettings({ parentAnnouncement: announcementInput.value }));
 
   exportBtn.addEventListener('click', () => exportBackup());
 

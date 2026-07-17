@@ -1,7 +1,7 @@
 // data.js — the only file allowed to call localStorage.
 
 const STORAGE_KEY = 'stm:v1';
-const SCHEMA_VERSION = 3;
+const SCHEMA_VERSION = 4;
 
 let _cache = null;
 const _subs = new Set(); // () => void, called after an external (cross-tab) change
@@ -21,7 +21,7 @@ function emptyData() {
   return {
     schemaVersion: SCHEMA_VERSION,
     meta: { lastModifiedAt: null, lastBackupAt: null, changesSinceBackup: 0 },
-    settings: { teamName: '', season: '', myPlayerId: null, hasSeenWizard: false },
+    settings: { teamName: '', season: '', myPlayerId: null, hasSeenWizard: false, parentAnnouncement: '' },
     players: [], parents: [], playerParents: [], opponents: [],
     events: [], snackAssignments: [],
     fundraiserPlatforms: [], fundraiserKinds: [], fundraisers: [], fundraiserOccurrences: []
@@ -42,7 +42,12 @@ function migrate(data) {
     data.fundraiserKinds = data.fundraiserKinds ?? [];
     data.schemaVersion = 3;
   }
-  // Pass-through at schemaVersion 3. Next migration branches here. Every
+  if (data.schemaVersion < 4) {
+    // The Parent App Home view's free-authored announcement (empty = hidden).
+    data.settings.parentAnnouncement ??= '';
+    data.schemaVersion = 4;
+  }
+  // Pass-through at schemaVersion 4. Next migration branches here. Every
   // load path (loadData, the storage listener, importBackup) routes
   // through this.
   return data;
@@ -290,6 +295,135 @@ export function exportBackup() {
   a.download = `stm-backup-${new Date().toISOString().slice(0, 10)}.json`;
   a.click();
   URL.revokeObjectURL(a.href);
+}
+
+// ---------- Parent App bundle (read-only, per-parent export) ----------
+// See PARENT-APP-SPEC.md §2 for the payload contract and §3.4 for the I-9
+// amendment this function is the enforcement point for: a child's balance is
+// included here, and ONLY for the requesting parent's own child(ren) — never
+// team-wide (export.js's schedule exports and messaging.js's digests must
+// keep excluding it). Bump BUNDLE_VERSION on any shape change to the object
+// this function returns.
+const BUNDLE_VERSION = 2;
+
+// Sorts by date then start time. Shared by every date-ordered admin listing
+// (export.js, messaging.js, the schedule/snacks views) — hoisted here since
+// data.js sits below all of them, so each can import it instead of keeping
+// its own copy.
+export const byDateTime = (a, b) => a.date === b.date
+  ? (a.startTime || '').localeCompare(b.startTime || '')
+  : a.date.localeCompare(b.date);
+
+function resolveBundleEvent(e, mySnackEventIds) {
+  const opp = e.opponentId ? getOpponentById(e.opponentId) : null;
+  const score = (e.type === 'game' && e.status === 'completed'
+    && e.finalScoreUs != null && e.finalScoreOpponent != null)
+    ? `${e.finalScoreUs}–${e.finalScoreOpponent}` : null;
+  return {
+    date: e.date,
+    type: e.type,
+    startTime: e.startTime,
+    endTime: e.endTime || '',
+    opponent: e.type === 'game' ? (opp ? opp.name : '(unknown)') : null,
+    location: e.location || (opp && opp.homeLocation) || '',
+    status: e.status,
+    score,
+    isMySnackDuty: mySnackEventIds.has(e.id)
+  };
+}
+
+// Earliest occurrence start -> latest end for one fundraiser, or nulls when
+// it has none yet (dates TBD). `occurrences` is that fundraiser's own slice,
+// already grouped by the caller — see the single grouping pass in
+// exportParentBundle below, so this stays O(1) per fundraiser instead of
+// re-scanning the whole occurrences table for each one.
+function fundraiserSpanOf(occurrences) {
+  if (!occurrences.length) return { start: null, end: null };
+  let start = occurrences[0].startDate, end = occurrences[0].endDate;
+  for (const o of occurrences) {
+    if (o.startDate < start) start = o.startDate;
+    if (o.endDate > end) end = o.endDate;
+  }
+  return { start, end };
+}
+
+// Completed games only, both scores set — mirrors selectors.js's
+// getTeamRecord(), kept as its own copy here since data.js must not import
+// from selectors.js (selectors.js already imports from data.js).
+function teamRecordOf(events) {
+  let wins = 0, losses = 0, ties = 0;
+  for (const e of events) {
+    if (e.type !== 'game' || e.status !== 'completed') continue;
+    if (e.finalScoreUs == null || e.finalScoreOpponent == null) continue;
+    if (e.finalScoreUs > e.finalScoreOpponent) wins++;
+    else if (e.finalScoreUs < e.finalScoreOpponent) losses++;
+    else ties++;
+  }
+  return { wins, losses, ties };
+}
+
+// Assembles the one-family payload the Parent App imports. Throws on an
+// unknown parentId. Deliberately omits everything in spec §2.2 (other
+// families' contacts, the playerParents join graph, private notes, meta).
+export function exportParentBundle(parentId) {
+  const d = getData();
+  const parent = d.parents.find(p => p.id === parentId);
+  if (!parent) throw new Error('Unknown parentId');
+
+  const childIds = new Set(
+    d.playerParents.filter(pp => pp.parentId === parentId).map(pp => pp.playerId)
+  );
+  const children = d.players
+    .filter(p => childIds.has(p.id))
+    .map(p => ({
+      firstName: p.firstName,
+      lastName: p.lastName,
+      jerseyNumber: p.jerseyNumber,
+      position: p.position,
+      balanceCents: p.outstandingBalanceCents || 0
+    }));
+
+  const mySnackEventIds = new Set(
+    d.snackAssignments.filter(sa => sa.parentId === parentId).map(sa => sa.eventId)
+  );
+
+  const activeEvents = d.events.filter(e => e.status !== 'canceled');
+  const schedule = activeEvents
+    .slice()
+    .sort(byDateTime)
+    .map(e => resolveBundleEvent(e, mySnackEventIds));
+
+  const occurrencesByFundraiser = new Map();
+  for (const o of d.fundraiserOccurrences) {
+    if (!occurrencesByFundraiser.has(o.fundraiserId)) occurrencesByFundraiser.set(o.fundraiserId, []);
+    occurrencesByFundraiser.get(o.fundraiserId).push(o);
+  }
+  const fundraisers = d.fundraisers
+    .filter(f => f.status !== 'canceled')
+    .map(f => {
+      const span = fundraiserSpanOf(occurrencesByFundraiser.get(f.id) || []);
+      return {
+        name: f.name,
+        kind: f.kind,
+        raisedCents: f.raisedAmountCents || 0,
+        goalCents: f.goalAmountCents || 0,
+        start: span.start,
+        end: span.end
+      };
+    });
+
+  return {
+    bundleVersion: BUNDLE_VERSION,
+    schemaVersion: d.schemaVersion,
+    generatedAt: new Date().toISOString(),
+    team: { name: d.settings.teamName || '', season: d.settings.season || '' },
+    parent: { name: parent.name },
+    announcement: (d.settings.parentAnnouncement || '').trim(),
+    record: teamRecordOf(d.events),
+    children,
+    schedule,
+    fundraisers
+  };
 }
 
 const REQUIRED_ARRAYS = [

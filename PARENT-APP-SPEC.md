@@ -56,14 +56,18 @@ agree on it exactly.
 
 ```jsonc
 {
-  "bundleVersion": 1,          // Parent-App payload format. Independent of the
+  "bundleVersion": 2,          // Parent-App payload format. Independent of the
                                // admin's SCHEMA_VERSION. Bump on any shape change.
-  "schemaVersion": 3,          // admin store schema the bundle was built from,
+  "schemaVersion": 4,          // admin store schema the bundle was built from,
                                // so the Parent App can refuse a too-new bundle.
   "generatedAt": "2026-07-17T15:00:00.000Z",
 
   "team":   { "name": "Wildcats", "season": "Fall 2026" },
   "parent": { "name": "Jenah Carson" },
+  "announcement": "Practice moved to Thursdays this month.", // free text from
+                               // settings.parentAnnouncement, admin-authored,
+                               // team-wide (not per-family); "" hides it.
+  "record": { "wins": 1, "losses": 1, "ties": 0 },  // completed games only
 
   "children": [                // this parent's players only (via playerParents)
     {
@@ -92,6 +96,16 @@ agree on it exactly.
   ]
 }
 ```
+
+`record`/next-game/next-practice/"registration open" all back the Home view
+(§5.6). `record` is precomputed by the admin (mirrors `selectors.js`'s
+`getTeamRecord()`) rather than derived client-side from `schedule[].score`,
+since the score is a display-formatted string (`"14–7"`) and re-parsing it to
+determine a winner would be a fragile, purely-textual dependency. Next
+game/practice and "registration open", by contrast, need no extra field —
+they're filtered straight out of `schedule[]` (`type`/`status`/`date`), so a
+`registration`-type event already flows into a per-family bundle unchanged
+just by not being excluded.
 
 ### 2.2 What is deliberately **absent**
 
@@ -156,10 +170,17 @@ No QR library is added.
 
 Per parent row/detail, a button that:
 
-1. Calls `exportParentBundle(parent.id)` → `bundleToHashUrl(...)`.
-2. Opens the composer via the **existing** `messaging.js` builders:
+1. Calls `exportParentBundle(parent.id)` → `bundleToHashUrl(...)` (async —
+   the compression step is a real `await`).
+2. Builds the composer link via the **existing** `messaging.js` builders:
    `smsLink(parent.phone, "Your <team> info: <url>")` or
    `mailtoLink(parent.email, subject, body)`.
+3. Renders that link as a plain `<a href>` the admin taps themselves, rather
+   than auto-navigating via `window.location.href` — a custom-scheme
+   (`sms:`/`mailto:`) navigation fired after an `await` can silently lose
+   iOS Safari's user-activation context and no-op. A real anchor click is
+   its own fresh, synchronous gesture, so it can't hit that failure mode.
+   This is the same pattern `communications.js`'s Email/Text links already use.
 
 Reuses the app's established SMS/email pattern (the admin already texts parents,
 including balances via the overdue-fee templates in `messaging.js`), so this
@@ -227,6 +248,8 @@ Mirrors `Football/` but much smaller:
     util.js                  escapeHtml, cents↔dollars (copied from admin)
     router.js                hash routing + mount/unmount
     views/
+      home.js                 landing dashboard: record, next game/practice,
+                               registration-open banner, announcement
       schedule.js            team schedule, with "your snack duty" flagged
       balance.js             this family's balance(s)
       fundraisers.js         fundraiser progress
@@ -245,8 +268,11 @@ On load (and whenever the app is opened via a link):
 1. Read `location.hash`; if it starts with `#b=`, take the payload.
 2. base64url-decode → **`DecompressionStream('deflate-raw')`** → JSON.parse.
 3. **Validate** before storing (mirror `isValidStore` in `data.js`):
-   - is an object; has numeric `bundleVersion` ≤ supported max;
-   - has `team`, `children[]`, `schedule[]`, `fundraisers[]`.
+   - is an object; has an integer `bundleVersion` ≥ 1, ≤ supported max;
+   - has `team`; has `children[]`/`schedule[]`/`fundraisers[]`, each an array
+     of non-null objects (not just `Array.isArray` — a corrupted/truncated
+     link with e.g. `schedule: [null]` must be refused here, not throw deep
+     inside a view's row-renderer).
    - On `bundleVersion` too new → refuse with a clear "update this app" message,
      leave any existing store untouched (mirrors `importBackup`'s refusal).
 4. On success, replace the stored bundle and **clear the hash** from the URL
@@ -270,6 +296,13 @@ On load (and whenever the app is opened via a link):
 
 ### 5.6 Views (read-only)
 
+- **Home (default route, `#/home`):** season record (`record`); next
+  upcoming game and next upcoming practice (first `schedule[]` entry of that
+  `type`/`status: "scheduled"` with `date >= today`, no extra bundle field
+  needed); a **"📝 Registration is open"** banner when `schedule[]` has any
+  upcoming `type: "registration"` event; the admin's free-authored
+  `announcement`, shown verbatim (escaped) when non-empty and hidden when
+  blank.
 - **Schedule:** all events, date-ordered; each row shows type/opponent/time/
   location/status/score; rows where `isMySnackDuty` is true get a clear "🍎 Your
   snack duty" marker.
@@ -281,9 +314,11 @@ On load (and whenever the app is opened via a link):
 
 ### 5.7 PWA / manifest
 
-- Own `manifest.webmanifest` with distinct `name` ("Team — Family View" or
-  similar), `short_name`, and **its own icon set** so it's visually distinct
-  from the admin app on a home screen.
+- Own `manifest.webmanifest`: `name: "FootballParent"`, `short_name:
+  "Parent"`, and **its own icon set** (§8.4) so it's visually distinct from
+  the admin app on a home screen. The manifest identity is static (see §8.4);
+  the in-app header and document `<title>` re-brand dynamically per bundle
+  once one is imported.
 - `display: standalone`, relative `start_url`/`scope` (I-5).
 
 ---
@@ -323,18 +358,31 @@ On load (and whenever the app is opened via a link):
 
 ---
 
-## 8. Open decisions
+## 8. Decisions (settled)
 
-1. **Multi-child balance display:** per-child rows plus a summed total (assumed
-   in §5.6) — confirm this matches how you think about a family that owes on two
-   kids.
-2. **Contact channel default:** does "Send family link" default to SMS
-   (`parent.phone`) or email (`parent.email`), and what's the fallback when the
-   preferred field is empty?
-3. **Schedule breadth:** whole season vs. a rolling window (e.g. next 60 days)
-   in the bundle — affects link length, though tappable links have generous
-   headroom so whole-season is the default assumption.
-4. **Parent App naming/branding & icon set** (distinct from the admin app).
+1. **Multi-child balance display:** per-child rows plus a summed total.
+2. **Contact channel default:** "Send family link" defaults to **SMS**
+   (`parent.phone`). If `phone` is empty, fall back to **email**
+   (`parent.email`). If both are empty, the button is disabled with a tooltip
+   ("add a phone or email for this parent first").
+3. **Schedule breadth:** **whole season** — link length has generous headroom
+   (D-2), so no rolling-window truncation.
+4. **Parent App naming/branding & icon set:**
+   - **In-UI title is dynamic**, built from the bundle: `"{team.name} Parent
+     App"` (e.g. "Red Raiders Parent App"), rendered in the header and the
+     document `<title>` once a bundle is imported. Falls back to a generic
+     "Team Parent App" before any bundle has been imported.
+   - **Internal/code name is static**: `FootballParent` — used in the
+     `manifest.webmanifest` `name`/`short_name` (the static PWA identity used
+     for home-screen install before a dynamic title can apply, and as the
+     app's package-level identity across all families), commit messages, and
+     file/dir naming. The manifest name is not per-team because a manifest is
+     a static asset shipped once at deploy time, not per-bundle.
+   - **Icon**: a distinct-but-related mark — same navy (`#011325`) rounded-
+     square background and amber (`#d97706`) accent as the admin app's
+     palette, but a **house outline + football** motif (family/parent theme)
+     instead of the admin's clipboard-and-play-diagram (coach/admin theme).
+     Own icon set at all the same sizes as `Football/icons/`.
 
 ---
 

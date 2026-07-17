@@ -11,14 +11,14 @@
 // time. Toggling a weekly type checkbox deliberately re-seeds that draft; a
 // data-change re-render never clobbers an in-progress edit.
 import {
-  getParents, getSettings, getPlayerById,
+  getParents, getPlayerById,
   getPlayerParentsForPlayer, getParentById, subscribe
 } from '../data.js';
 import {
   buildWeeklyUpdateText, buildRegistrationText, buildNewsText,
   buildFundraiserUpdateText, buildOverdueFeeTemplate, renderFeeTemplate,
   getUpcomingEventTypes, FUNDRAISER_TIMEFRAMES, fundraiserTimeframeLabel,
-  getAllParentEmails, mailtoLink, smsLink, copyToClipboard
+  getAllParentEmails, mailtoLink, smsLink, copyToClipboard, teamName
 } from '../messaging.js';
 import { getPlayersWithBalance } from '../selectors.js';
 import { eventTypeLabel } from '../event-types.js';
@@ -26,7 +26,6 @@ import { escapeHtml, centsToDollarsStr } from '../util.js';
 
 const WEEKLY_DAYS = 7;
 
-function teamName() { return getSettings().teamName?.trim() || 'Team'; }
 function weeklySubject() { return `${teamName()} Updates`; }
 function registrationSubject() { return `${teamName()} Registration`; }
 function newsSubject() { return `${teamName()} News`; }
