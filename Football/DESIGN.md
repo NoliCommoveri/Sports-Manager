@@ -354,8 +354,10 @@ interpolated into an `innerHTML` template must be wrapped in `escapeHtml()` —
 this includes values placed inside attribute values (`value="${…}"`,
 `href="${…}"`). Static enum literals the code itself writes (e.g. the
 `['planned','active',…]` option list) don't need it. `textContent =` assignment
-is inherently safe and preferred where no markup is needed (e.g. the weekly-update
-`<pre>`). Treat the **import path as hostile**: a backup's fields can contain
+is inherently safe and preferred where no markup is needed; the Communications
+weekly-update box is a `<textarea>` set via `.value` (§9.5), which is likewise
+inert — text typed or set there is never parsed as markup, editable or not.
+Treat the **import path as hostile**: a backup's fields can contain
 `<img onerror>` payloads, so escaping at the render site is the defense, not
 input sanitization.
 
@@ -416,10 +418,41 @@ Parents CRUD + link/unlink children via the `playerParents` join. Delete warns i
 also removes the parent's snack assignments.
 
 ### 9.5 communications.js (`#/communications`)
-Renders the **weekly digest** (`buildWeeklyUpdateText`, 7-day window) into a
-`<pre>` via `textContent`. **Email All** builds a multi-recipient `mailto:` from
-all parent emails; per-parent Email/Text rows build `mailto:`/`sms:` links
-(escaped in `href`). Copy-to-clipboard fallback for when no mail client is wired.
+The weekly digest (`buildWeeklyUpdateText`, 7-day window) is seeded into an
+**editable `<textarea>`** — not a read-only `<pre>` — so the admin can rewrite
+it before sending, including repurposing it as a one-off general newsletter
+(clear the seeded digest, type a custom message). The textarea is the single
+source of truth for the outgoing message:
+
+- **Seeded once per mount** (`messageSeeded` guard) from `buildWeeklyUpdateText()`.
+  Edits are **ephemeral** — navigating away and back re-seeds from the schedule.
+  There is no persistence and no manual "regenerate" control; on a single-device
+  PWA the admin never edits concurrently with a schedule change, so the guard
+  exists only to stop a `subscribe`-driven re-render from clobbering an
+  in-progress edit, not to solve a real observed collision.
+- **Email All**'s `mailto:` href is rebuilt from the current textarea value on
+  every `input` event, so it always matches what's on screen.
+- **Per-parent Email/Text** links don't bake a body in at render time. Each row
+  only carries `data-email`/`data-phone`; a delegated click handler on
+  `#contacts-body` resolves the actual `mailto:`/`sms:` href from
+  `textarea.value` **at click time**, immediately before the browser follows it.
+  This is what keeps 20+ per-parent rows in sync with an edit without rebuilding
+  the whole table on every keystroke.
+- **Subject line** is `currentSubject()`: `"<teamName> Updates"` (falls back to
+  `"Team Updates"` if unset) — applied to both Email All and per-parent email
+  links. It is *not* editable in the UI; only the body is.
+- **Copy Message** copies `textarea.value` (the live, possibly-edited text).
+
+### 9.5.1 Follow-ups considered but not built
+Raised when a user wanted the tab for occasional newsletter blasts, not just
+the weekly digest — deliberately deferred, not forgotten:
+- **Editable subject** (currently fixed to `"<team> Updates"`).
+- **Dedicated newsletter composer** kept separate from the schedule digest
+  (own blank body + subject).
+- **Persisted drafts** across navigation/reload for a newsletter composer.
+
+If asked to build any of these, start here rather than re-deriving requirements
+from scratch.
 
 ### 9.6 snacks.js (`#/snacks`)
 **Games only** (by design). Flags upcoming games with no snack parent.
@@ -456,11 +489,22 @@ included in exports (it's the point of the handout).
 
 ### 10.2 messaging.js
 `buildWeeklyUpdateText(daysAhead=7)` — plain-text digest of upcoming
-events+snacks. `mailtoLink(emails, subject, body)` — recipients joined with
-**literal commas** (encoding the comma breaks multi-recipient parsing);
-subject/body via `encodeURIComponent` (**not** `URLSearchParams`, which encodes
-spaces as `+` — `mailto:` needs `%20`). `smsLink` picks `&` vs `?` by iOS
-detection. These encoding choices are load-bearing; don't "simplify" them.
+events+snacks, **prefixed with a personalized greeting**:
+`"Hello <teamName> Family, these are the important updates for this week:"`
+(`teamName` from `getSettings().teamName`, trimmed, falling back to `"Team"`
+when unset). The greeting is built **once** and shared by both branches of the
+function — the normal digest *and* the empty-schedule fallback
+(`"No practices or games scheduled in the next N days."`) — so the message
+reads the same whether or not there are upcoming events. This text is only the
+**seed** for the Communications textarea (§9.5); the admin can freely edit or
+replace it before sending, and the outgoing email subject (`"<team> Updates"`)
+is generated separately in `communications.js`, not here.
+
+`mailtoLink(emails, subject, body)` — recipients joined with **literal commas**
+(encoding the comma breaks multi-recipient parsing); subject/body via
+`encodeURIComponent` (**not** `URLSearchParams`, which encodes spaces as `+` —
+`mailto:` needs `%20`). `smsLink` picks `&` vs `?` by iOS detection. These
+encoding choices are load-bearing; don't "simplify" them.
 
 ### 10.3 PWA / service worker (sw.js)
 `manifest.webmanifest` is fully relative (`start_url:"./index.html"`,
