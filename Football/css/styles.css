@@ -607,6 +607,7 @@ dialog form input, dialog form select {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
   gap: var(--gap);
+  margin-bottom: var(--gap);
 }
 
 .dashboard-cards section {
