@@ -1,9 +1,13 @@
 // communications.js — weekly digest broadcast + per-parent quick contact.
-import { getParents, subscribe } from '../data.js';
+import { getParents, getSettings, subscribe } from '../data.js';
 import { buildWeeklyUpdateText, getAllParentEmails, mailtoLink, smsLink, copyToClipboard } from '../messaging.js';
 import { escapeHtml } from '../util.js';
 
-const SUBJECT = 'Weekly Practice & Snack Schedule';
+// Email subject, personalized with the team name (falls back to "Team").
+function currentSubject() {
+  const teamName = getSettings().teamName?.trim() || 'Team';
+  return `${teamName} Updates`;
+}
 
 export function mount(container) {
   container.innerHTML = `
@@ -51,7 +55,7 @@ export function mount(container) {
     }
 
     const emails = getAllParentEmails();
-    emailAllBtn.href = mailtoLink(emails, SUBJECT, currentMessage());
+    emailAllBtn.href = mailtoLink(emails, currentSubject(), currentMessage());
     emailAllBtn.classList.toggle('disabled', emails.length === 0);
     emailAllBtn.textContent = emails.length
       ? `Email All Parents (${emails.length})`
@@ -78,7 +82,7 @@ export function mount(container) {
 
   // Keep the "Email All" href current as the coach edits the message.
   textarea.addEventListener('input', () => {
-    emailAllBtn.href = mailtoLink(getAllParentEmails(), SUBJECT, currentMessage());
+    emailAllBtn.href = mailtoLink(getAllParentEmails(), currentSubject(), currentMessage());
   });
 
   // Per-parent links: resolve the href from the live message at click time,
@@ -88,7 +92,7 @@ export function mount(container) {
     if (!link) return;
     const msg = currentMessage();
     link.href = link.dataset.action === 'email'
-      ? mailtoLink(link.dataset.email, SUBJECT, msg)
+      ? mailtoLink(link.dataset.email, currentSubject(), msg)
       : smsLink(link.dataset.phone, msg);
   });
 

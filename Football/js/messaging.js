@@ -1,7 +1,7 @@
 // messaging.js — mailto:/sms: link builders + weekly digest text. No localStorage access.
 import {
   getEvents, getSnackAssignmentsForEvent, getParentById,
-  getOpponentById, getParents
+  getOpponentById, getParents, getSettings
 } from './data.js';
 import { todayStr, addDaysStr } from './selectors.js';
 
@@ -14,6 +14,8 @@ function fmtDate(dateStr) {
 export function buildWeeklyUpdateText(daysAhead = 7) {
   const today = todayStr();
   const endDate = addDaysStr(today, daysAhead);
+  const teamName = getSettings().teamName?.trim() || 'Team';
+  const greeting = `Hello ${teamName} Family, these are the important updates for this week:`;
 
   const upcoming = getEvents()
     .filter(e => e.date >= today && e.date <= endDate && e.status !== 'canceled')
@@ -21,7 +23,7 @@ export function buildWeeklyUpdateText(daysAhead = 7) {
       ? (a.startTime || '').localeCompare(b.startTime || '') : a.date.localeCompare(b.date));
 
   if (upcoming.length === 0) {
-    return `No practices or games scheduled in the next ${daysAhead} days.`;
+    return `${greeting}\n\nNo practices or games scheduled in the next ${daysAhead} days.`;
   }
 
   const lines = upcoming.map(e => {
@@ -38,7 +40,7 @@ export function buildWeeklyUpdateText(daysAhead = 7) {
     return line;
   });
 
-  return `Please see the following info for the upcoming week's practice and snack schedule:\n\n${lines.join('\n')}`;
+  return `${greeting}\n\n${lines.join('\n')}`;
 }
 
 export function getAllParentEmails() {
