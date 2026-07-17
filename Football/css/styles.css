@@ -16,6 +16,51 @@
   --gap: 12px;
 }
 
+/* Alternate color themes — picked from the footer swatch switcher, applied
+   via data-theme on <html> (see js/theme.js). Field Green (above) is the
+   default and has no override block of its own. */
+:root[data-theme="friday-night-lights"] {
+  --color-bg: #eef1f6;
+  --color-surface: #ffffff;
+  --color-border: #c7d0e0;
+  --color-text: #101827;
+  --color-text-muted: #57607a;
+  --color-primary: #13294b;
+  --color-primary-dark: #0a1730;
+  --color-accent: #ffb81c;
+  --color-danger: #b91c1c;
+  --color-warning-bg: #fff3cd;
+  --color-warning-border: #f0c76a;
+}
+
+:root[data-theme="end-zone-crimson"] {
+  --color-bg: #f8f4f1;
+  --color-surface: #ffffff;
+  --color-border: #ddd0ce;
+  --color-text: #2a1517;
+  --color-text-muted: #6f5657;
+  --color-primary: #8a1538;
+  --color-primary-dark: #5c0e26;
+  --color-accent: #c9971f;
+  --color-danger: #9a2b1e;
+  --color-warning-bg: #fff3cd;
+  --color-warning-border: #f0c76a;
+}
+
+:root[data-theme="turf-slate"] {
+  --color-bg: #f2f3f1;
+  --color-surface: #ffffff;
+  --color-border: #d5d8d1;
+  --color-text: #1b1e1a;
+  --color-text-muted: #575c53;
+  --color-primary: #2c2f2b;
+  --color-primary-dark: #171917;
+  --color-accent: #7cb518;
+  --color-danger: #b91c1c;
+  --color-warning-bg: #fff3cd;
+  --color-warning-border: #f0c76a;
+}
+
 * { box-sizing: border-box; }
 
 body {
@@ -874,4 +919,38 @@ tr.stale-event td:first-child {
 }
 .btn-danger:hover {
   background: #8f1717;
+}
+
+/* Theme switcher (footer) */
+.theme-switcher {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 10px 20px calc(env(safe-area-inset-bottom) + 16px);
+  color: var(--color-text-muted);
+  font-size: 0.75rem;
+}
+
+.theme-switcher-label {
+  margin-right: 2px;
+}
+
+.theme-swatch {
+  width: 14px;
+  height: 14px;
+  padding: 0;
+  border: 1px solid var(--color-border);
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--swatch-primary) 50%, var(--swatch-accent) 50%);
+}
+
+.theme-swatch:hover {
+  background: linear-gradient(135deg, var(--swatch-primary) 50%, var(--swatch-accent) 50%);
+  opacity: 0.75;
+}
+
+.theme-swatch.active {
+  box-shadow: 0 0 0 2px var(--color-surface), 0 0 0 3px var(--color-text-muted);
 }

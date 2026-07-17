@@ -252,6 +252,8 @@ App at `./Parent/` (a child), not `../Parent/` (a sibling).
     import.js                hash → decode → validate → store
     util.js                  escapeHtml, cents↔dollars (copied from admin)
     router.js                hash routing + mount/unmount
+    theme.js                 color theme: data-theme + the footer swatch switcher
+                              (device-local pick, stored via store.js, not the bundle)
     views/
       home.js                 landing dashboard: record, next game/practice,
                                registration-open banner, announcement
@@ -264,6 +266,9 @@ App at `./Parent/` (a child), not `../Parent/` (a sibling).
 
 - Key e.g. `stm-parent:v1`, separate from the admin's `stm:v1`.
 - Stores the **last imported bundle** verbatim (plus an import timestamp).
+- A second key, `stm-parent:theme`, holds the color-theme pick — a device-local
+  display preference, not part of the bundle, so re-importing a link never
+  resets it.
 - **Invariant (inherited I-1):** only `store.js` touches `localStorage`.
 - **Per-sport cloning caveat.** `localStorage` and Cache Storage are scoped to
   the **origin**, not the path (see `Football/DESIGN.md` §13). All sports'

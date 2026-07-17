@@ -1,7 +1,7 @@
 // data.js — the only file allowed to call localStorage.
 
 const STORAGE_KEY = 'stm:v1';
-const SCHEMA_VERSION = 4;
+const SCHEMA_VERSION = 5;
 
 let _cache = null;
 const _subs = new Set(); // () => void, called after an external (cross-tab) change
@@ -21,7 +21,7 @@ function emptyData() {
   return {
     schemaVersion: SCHEMA_VERSION,
     meta: { lastModifiedAt: null, lastBackupAt: null, changesSinceBackup: 0 },
-    settings: { teamName: '', season: '', myPlayerId: null, hasSeenWizard: false, parentAnnouncement: '' },
+    settings: { teamName: '', season: '', myPlayerId: null, hasSeenWizard: false, parentAnnouncement: '', theme: 'field-green' },
     players: [], parents: [], playerParents: [], opponents: [],
     events: [], snackAssignments: [],
     fundraiserPlatforms: [], fundraiserKinds: [], fundraisers: [], fundraiserOccurrences: []
@@ -47,7 +47,12 @@ function migrate(data) {
     data.settings.parentAnnouncement ??= '';
     data.schemaVersion = 4;
   }
-  // Pass-through at schemaVersion 4. Next migration branches here. Every
+  if (data.schemaVersion < 5) {
+    // Color theme, picked from the footer swatch switcher.
+    data.settings.theme ??= 'field-green';
+    data.schemaVersion = 5;
+  }
+  // Pass-through at schemaVersion 5. Next migration branches here. Every
   // load path (loadData, the storage listener, importBackup) routes
   // through this.
   return data;

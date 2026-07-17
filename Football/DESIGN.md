@@ -70,6 +70,7 @@ files — see §13):
     util.js                  escapeHtml, cents↔dollars helpers
     selectors.js             pure derived reads (record, next event, staleness, dates, balances)
     event-types.js           the event-type registry (labels/flags) — single source
+    theme.js                 color theme: applies data-theme + the footer swatch switcher
     router.js                hash routing + mount/unmount lifecycle
     seed.js                  first-run defaults (fundraiser platforms)
     messaging.js             mailto/sms builders + weekly digest text
@@ -113,7 +114,7 @@ architecture.
 
 ## 5. Data model / schema
 
-**Storage key:** `stm:v1` (a single JSON object). **`SCHEMA_VERSION`: `4`.**
+**Storage key:** `stm:v1` (a single JSON object). **`SCHEMA_VERSION`: `5`.**
 
 The key name is fixed and version-independent; the *version* is the
 `schemaVersion` field inside the JSON, not the key. Do **not** rename the key to
@@ -123,7 +124,7 @@ migrate — bump `schemaVersion` and extend `migrate()`.
 
 ```jsonc
 {
-  "schemaVersion": 4,
+  "schemaVersion": 5,
   "meta": {
     "lastModifiedAt": "ISO-8601 string | null",   // stamped by saveData()
     "lastBackupAt":   "ISO-8601 string | null",   // stamped by exportBackup()
@@ -134,8 +135,10 @@ migrate — bump `schemaVersion` and extend `migrate()`.
     "season":       "",            // free text, e.g. "Fall 2026"
     "myPlayerId":   null,          // Player.id highlighted app-wide, or null
     "hasSeenWizard": false,        // false → first-run wizard auto-opens (added in v3)
-    "parentAnnouncement": ""       // free text shown on every family's Parent App
+    "parentAnnouncement": "",      // free text shown on every family's Parent App
                                     // Home tab; empty hides it (added in v4)
+    "theme": "field-green"         // one of THEMES in js/theme.js; picked from the
+                                    // footer swatch switcher (added in v5)
   },
   "players":              [ /* Player */ ],
   "parents":              [ /* Parent */ ],
@@ -303,6 +306,7 @@ migrate(data):
   if schemaVersion < 2: add meta.changesSinceBackup; → 2
   if schemaVersion < 3: settings.hasSeenWizard ??= true; fundraiserKinds ??= []; → 3
   if schemaVersion < 4: settings.parentAnnouncement ??= ''; → 4
+  if schemaVersion < 5: settings.theme ??= 'field-green'; → 5
   return data
 ```
 
@@ -532,7 +536,7 @@ detection. These encoding choices are load-bearing; don't "simplify" them.
   module + both vendored libs + all icons. If a module isn't listed, the app
   boots online (uncached fetch) but **404s offline**. Keep this list in sync with
   the `js/` tree (I-10).
-- **`CACHE_NAME`** (currently `stm-shell-v16`) — **bump it on every change to any
+- **`CACHE_NAME`** (currently `stm-shell-v17`) — **bump it on every change to any
   cached file**, or service-worker-controlled clients keep serving stale code.
   The `activate` handler deletes all caches whose name ≠ `CACHE_NAME`.
 - **Fetch strategy:** cache-first for shell URLs (safe because they're pinned per
@@ -552,6 +556,18 @@ App-level banners above the outlet. `nudge.js` shows when `backupNudgeDue()`.
 `hygiene.js` shows a count of stale events+fundraisers with a session-only
 Dismiss. Both are init-once singletons (subscribe, never unmounted) — this is
 intentional and distinct from the routed-view mount contract.
+
+### 10.6 theme.js
+App-level, below the outlet — an init-once singleton like §10.5, not a routed
+view. `initTheme()` sets `<html data-theme>` from `settings.theme` (and syncs
+the `<meta name="theme-color">` tag) before the router mounts anything.
+`initThemeSwitcher(footerEl)` renders one small round swatch per entry in the
+exported `THEMES` list (id/label/primary/accent) into the `#theme-switcher`
+footer and writes the pick back through `updateSettings({ theme })` on click —
+deliberately unobtrusive (small, `color-text-muted`, always at the bottom of
+every screen, never a modal or a settings-page control). `css/styles.css`
+carries one `:root[data-theme="…"]` override block per non-default theme;
+Field Green needs none since it *is* the bare `:root`.
 
 ---
 
