@@ -502,7 +502,11 @@ dialog form input, dialog form select {
 }
 
 /* Communications */
-.weekly-update pre {
+.weekly-update textarea {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  resize: vertical;
   white-space: pre-wrap;
   word-break: break-word;
   overflow-wrap: anywhere;
@@ -510,8 +514,10 @@ dialog form input, dialog form select {
   border: 1px solid var(--color-border);
   border-radius: var(--radius);
   padding: 8px 10px;
+  margin-bottom: 8px;
   font-family: inherit;
   font-size: 0.9rem;
+  line-height: 1.4;
 }
 
 .btn-link {
