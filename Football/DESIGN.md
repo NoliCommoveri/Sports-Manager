@@ -427,7 +427,7 @@ Parents CRUD + link/unlink children via the `playerParents` join. Delete warns i
 also removes the parent's snack assignments.
 
 ### 9.5 communications.js (`#/communications`)
-A four-tab **composer** plus the per-parent **Parent Contacts** table. **Every
+A five-tab **composer** plus the per-parent **Parent Contacts** table. **Every
 panel is text-editable before sending** — each draft lives in an editable
 `<textarea>` that is the single source of truth for its outgoing text:
 
@@ -440,13 +440,20 @@ panel is text-editable before sending** — each draft lives in an editable
   events, or drops an editable template when none are scheduled.
 - **News** — `buildNewsText()`: a blank broadcast that pulls **no** data, just
   the `Hello <Team> Families,` greeting for free-form typing.
+- **Fundraisers** — `buildFundraiserUpdateText({timeframes})`. A checkbox per
+  **future / active / past** bucket (fixed set, `FUNDRAISER_TIMEFRAMES`) lets the
+  admin scope which fundraisers appear; toggling one deliberately re-seeds the
+  draft. View-local opt-outs (Set of excluded timeframes). Each line pulls in the
+  fundraiser's name, kind, occurrence date span, and raised-of-goal amount. A
+  fundraiser is bucketed by its occurrence dates (falling back to `status` when
+  it has none).
 - **Overdue Fees** — `getPlayersWithBalance()` lists each player with a balance.
   An **editable template** textarea (`buildOverdueFeeTemplate`) with `{player}`/
   `{amount}` tokens is filled in per family by `renderFeeTemplate` at click time,
   so each family's Email/Text link mentions **only that family's** balance.
   Deliberately per-family, never a broadcast and never exported (I-9).
 
-**Email All** (the three broadcast tabs) builds a multi-recipient `mailto:` from
+**Email All** (the four broadcast tabs) builds a multi-recipient `mailto:` from
 all parent emails; every per-recipient link resolves its `href` from the live
 draft/template + balance **at click time**, escaped (I-3). **Parent Contacts**
 links use the draft of whichever tab is active (fees falls back to the weekly

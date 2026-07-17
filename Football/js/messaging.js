@@ -1,7 +1,8 @@
 // messaging.js — mailto:/sms: link builders + broadcast/notice text. No localStorage access.
 import {
   getEvents, getSnackAssignmentsForEvent, getParentById,
-  getOpponentById, getParents, getSettings
+  getOpponentById, getParents, getSettings,
+  getFundraisers, getFundraiserOccurrencesForFundraiser
 } from './data.js';
 import { todayStr, addDaysStr } from './selectors.js';
 import { eventTypeLabel, orderEventTypes } from './event-types.js';
@@ -115,6 +116,79 @@ export function renderFeeTemplate(template, player) {
   const name = `${player.firstName || ''} ${player.lastName || ''}`.trim() || 'your player';
   const amount = `$${centsToDollarsStr(player.outstandingBalanceCents)}`;
   return String(template).replaceAll('{player}', name).replaceAll('{amount}', amount);
+}
+
+// ---- Fundraiser progress update ----
+// The three timeframe buckets the Communications composer lets the admin toggle,
+// in the order they're shown. A fundraiser lands in exactly one bucket.
+export const FUNDRAISER_TIMEFRAMES = ['future', 'active', 'past'];
+const FUNDRAISER_TIMEFRAME_LABELS = { future: 'Future', active: 'Active', past: 'Past' };
+const FUNDRAISER_KIND_LABELS = { uniforms: 'Uniforms', team_trip: 'Team Trip', general: 'General' };
+
+export function fundraiserTimeframeLabel(tf) {
+  return FUNDRAISER_TIMEFRAME_LABELS[tf] || tf;
+}
+
+// kind is free-text-tolerant (see DESIGN.md), so fall back to a de-underscored
+// version of whatever's stored rather than dropping an unknown kind.
+function fundraiserKindLabel(kind) {
+  return FUNDRAISER_KIND_LABELS[kind] || (kind ? kind.replace(/_/g, ' ') : 'General');
+}
+
+// A fundraiser's overall date span = earliest occurrence start → latest end.
+// Null when it has no occurrences yet (dates TBD).
+function fundraiserSpan(f) {
+  const occ = getFundraiserOccurrencesForFundraiser(f.id);
+  if (!occ.length) return null;
+  let start = occ[0].startDate, end = occ[0].endDate;
+  for (const o of occ) {
+    if (o.startDate < start) start = o.startDate;
+    if (o.endDate > end) end = o.endDate;
+  }
+  return { start, end };
+}
+
+// Bucket a fundraiser as future/active/past. Date-first: past once its whole
+// span is behind us, future until it starts, active while today sits inside it.
+// With no dates on file, fall back to its status so it still lands somewhere.
+function fundraiserTimeframe(f, today) {
+  const span = fundraiserSpan(f);
+  if (span) {
+    if (span.end < today) return 'past';
+    if (span.start > today) return 'future';
+    return 'active';
+  }
+  if (f.status === 'active') return 'active';
+  if (f.status === 'completed' || f.status === 'canceled') return 'past';
+  return 'future';
+}
+
+function fundraiserLine(f) {
+  const span = fundraiserSpan(f);
+  const dates = span ? `${fmtDate(span.start)} – ${fmtDate(span.end)}` : 'dates TBD';
+  const raised = `$${centsToDollarsStr(f.raisedAmountCents)}`;
+  const money = f.goalAmountCents > 0
+    ? `raised ${raised} of $${centsToDollarsStr(f.goalAmountCents)}`
+    : `raised ${raised}`;
+  return `${f.name} (${fundraiserKindLabel(f.kind)}) — ${dates} — ${money}`;
+}
+
+// Progress broadcast: greeting + blurb, then one line per fundraiser whose
+// timeframe is in `timeframes` (defaults to all three), earliest-starting first.
+export function buildFundraiserUpdateText({ timeframes = FUNDRAISER_TIMEFRAMES } = {}) {
+  const today = todayStr();
+  const greeting = `Hello ${teamName()} Family,`;
+  const intro = 'We are updating you on our fundraiser progress!';
+  const wanted = new Set(timeframes);
+  const rows = getFundraisers()
+    .filter(f => wanted.has(fundraiserTimeframe(f, today)))
+    .sort((a, b) => (fundraiserSpan(a)?.start || '').localeCompare(fundraiserSpan(b)?.start || ''))
+    .map(fundraiserLine);
+
+  if (rows.length === 0) {
+    return `${greeting}\n\n${intro}\n\nNo fundraisers to report right now.`;
+  }
+  return `${greeting}\n\n${intro}\n\n${rows.join('\n')}`;
 }
 
 export function getAllParentEmails() {
