@@ -281,9 +281,11 @@ On load (and whenever the app is opened via a link):
 
 ### 5.7 PWA / manifest
 
-- Own `manifest.webmanifest` with distinct `name` ("Team — Family View" or
-  similar), `short_name`, and **its own icon set** so it's visually distinct
-  from the admin app on a home screen.
+- Own `manifest.webmanifest`: `name: "FootballParent"`, `short_name:
+  "Parent"`, and **its own icon set** (§8.4) so it's visually distinct from
+  the admin app on a home screen. The manifest identity is static (see §8.4);
+  the in-app header and document `<title>` re-brand dynamically per bundle
+  once one is imported.
 - `display: standalone`, relative `start_url`/`scope` (I-5).
 
 ---
@@ -323,18 +325,31 @@ On load (and whenever the app is opened via a link):
 
 ---
 
-## 8. Open decisions
+## 8. Decisions (settled)
 
-1. **Multi-child balance display:** per-child rows plus a summed total (assumed
-   in §5.6) — confirm this matches how you think about a family that owes on two
-   kids.
-2. **Contact channel default:** does "Send family link" default to SMS
-   (`parent.phone`) or email (`parent.email`), and what's the fallback when the
-   preferred field is empty?
-3. **Schedule breadth:** whole season vs. a rolling window (e.g. next 60 days)
-   in the bundle — affects link length, though tappable links have generous
-   headroom so whole-season is the default assumption.
-4. **Parent App naming/branding & icon set** (distinct from the admin app).
+1. **Multi-child balance display:** per-child rows plus a summed total.
+2. **Contact channel default:** "Send family link" defaults to **SMS**
+   (`parent.phone`). If `phone` is empty, fall back to **email**
+   (`parent.email`). If both are empty, the button is disabled with a tooltip
+   ("add a phone or email for this parent first").
+3. **Schedule breadth:** **whole season** — link length has generous headroom
+   (D-2), so no rolling-window truncation.
+4. **Parent App naming/branding & icon set:**
+   - **In-UI title is dynamic**, built from the bundle: `"{team.name} Parent
+     App"` (e.g. "Red Raiders Parent App"), rendered in the header and the
+     document `<title>` once a bundle is imported. Falls back to a generic
+     "Team Parent App" before any bundle has been imported.
+   - **Internal/code name is static**: `FootballParent` — used in the
+     `manifest.webmanifest` `name`/`short_name` (the static PWA identity used
+     for home-screen install before a dynamic title can apply, and as the
+     app's package-level identity across all families), commit messages, and
+     file/dir naming. The manifest name is not per-team because a manifest is
+     a static asset shipped once at deploy time, not per-bundle.
+   - **Icon**: a distinct-but-related mark — same navy (`#011325`) rounded-
+     square background and amber (`#d97706`) accent as the admin app's
+     palette, but a **house outline + football** motif (family/parent theme)
+     instead of the admin's clipboard-and-play-diagram (coach/admin theme).
+     Own icon set at all the same sizes as `Football/icons/`.
 
 ---
 

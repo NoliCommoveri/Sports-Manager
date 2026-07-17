@@ -292,6 +292,105 @@ export function exportBackup() {
   URL.revokeObjectURL(a.href);
 }
 
+// ---------- Parent App bundle (read-only, per-parent export) ----------
+// See PARENT-APP-SPEC.md §2 for the payload contract and §3.4 for the I-9
+// amendment this function is the enforcement point for: a child's balance is
+// included here, and ONLY for the requesting parent's own child(ren) — never
+// team-wide (export.js's schedule exports and messaging.js's digests must
+// keep excluding it).
+const BUNDLE_VERSION = 1;
+
+function resolveBundleEvent(e, mySnackEventIds) {
+  const opp = e.opponentId ? getOpponentById(e.opponentId) : null;
+  const score = (e.type === 'game' && e.status === 'completed'
+    && e.finalScoreUs != null && e.finalScoreOpponent != null)
+    ? `${e.finalScoreUs}–${e.finalScoreOpponent}` : null;
+  return {
+    date: e.date,
+    type: e.type,
+    startTime: e.startTime,
+    endTime: e.endTime || '',
+    opponent: e.type === 'game' ? (opp ? opp.name : '(unknown)') : null,
+    location: e.location || (opp && opp.homeLocation) || '',
+    status: e.status,
+    score,
+    isMySnackDuty: mySnackEventIds.has(e.id)
+  };
+}
+
+// Earliest occurrence start -> latest end, or nulls when there are no
+// occurrences yet (dates TBD). Mirrors messaging.js's fundraiserSpan, kept as
+// its own copy here since data.js must not import from messaging.js (I-1's
+// dependency direction runs the other way).
+function bundleFundraiserSpan(fundraiserId) {
+  const occ = getData().fundraiserOccurrences.filter(o => o.fundraiserId === fundraiserId);
+  if (!occ.length) return { start: null, end: null };
+  let start = occ[0].startDate, end = occ[0].endDate;
+  for (const o of occ) {
+    if (o.startDate < start) start = o.startDate;
+    if (o.endDate > end) end = o.endDate;
+  }
+  return { start, end };
+}
+
+// Assembles the one-family payload the Parent App imports. Throws on an
+// unknown parentId. Deliberately omits everything in spec §2.2 (other
+// families' contacts, the playerParents join graph, private notes, meta).
+export function exportParentBundle(parentId) {
+  const d = getData();
+  const parent = d.parents.find(p => p.id === parentId);
+  if (!parent) throw new Error('Unknown parentId');
+
+  const childIds = new Set(
+    d.playerParents.filter(pp => pp.parentId === parentId).map(pp => pp.playerId)
+  );
+  const children = d.players
+    .filter(p => childIds.has(p.id))
+    .map(p => ({
+      firstName: p.firstName,
+      lastName: p.lastName,
+      jerseyNumber: p.jerseyNumber,
+      position: p.position,
+      balanceCents: p.outstandingBalanceCents || 0
+    }));
+
+  const mySnackEventIds = new Set(
+    d.snackAssignments.filter(sa => sa.parentId === parentId).map(sa => sa.eventId)
+  );
+
+  const schedule = d.events
+    .filter(e => e.status !== 'canceled')
+    .sort((a, b) => a.date === b.date
+      ? (a.startTime || '').localeCompare(b.startTime || '')
+      : a.date.localeCompare(b.date))
+    .map(e => resolveBundleEvent(e, mySnackEventIds));
+
+  const fundraisers = d.fundraisers
+    .filter(f => f.status !== 'canceled')
+    .map(f => {
+      const span = bundleFundraiserSpan(f.id);
+      return {
+        name: f.name,
+        kind: f.kind,
+        raisedCents: f.raisedAmountCents || 0,
+        goalCents: f.goalAmountCents || 0,
+        start: span.start,
+        end: span.end
+      };
+    });
+
+  return {
+    bundleVersion: BUNDLE_VERSION,
+    schemaVersion: d.schemaVersion,
+    generatedAt: new Date().toISOString(),
+    team: { name: d.settings.teamName || '', season: d.settings.season || '' },
+    parent: { name: parent.name },
+    children,
+    schedule,
+    fundraisers
+  };
+}
+
 const REQUIRED_ARRAYS = [
   'players', 'parents', 'playerParents', 'opponents', 'events',
   'snackAssignments', 'fundraiserPlatforms', 'fundraisers', 'fundraiserOccurrences'

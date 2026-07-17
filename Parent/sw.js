@@ -1,9 +1,5 @@
-const CACHE_NAME = 'stm-shell-v14';
+const CACHE_NAME = 'stm-parent-shell-v1';
 
-// App shell + app JS. Earlier versions excluded `js/*.js` so it always came
-// from the network, but that leaves the cached shell unable to hydrate
-// offline (its module imports 404 with no network). Now precached and
-// refreshed via CACHE_NAME bumps on deploy instead.
 const SHELL_FILES = [
   './',
   './index.html',
@@ -25,29 +21,15 @@ const SHELL_FILES = [
   './icons/icon-384x384.png',
   './icons/icon-512x512.png',
   './icons/icon-512x512-maskable.png',
-  './js/data.js',
+  './js/app.js',
+  './js/store.js',
+  './js/import.js',
   './js/util.js',
   './js/router.js',
-  './js/seed.js',
-  './js/selectors.js',
-  './js/event-types.js',
-  './js/wizard.js',
-  './js/wizard-content.js',
-  './js/nudge.js',
-  './js/hygiene.js',
-  './js/messaging.js',
-  './js/export.js',
-  './js/parent-link.js',
-  './js/views/team.js',
-  './js/views/roster.js',
-  './js/views/parents.js',
+  './js/views/shared.js',
   './js/views/schedule.js',
-  './js/views/snacks.js',
-  './js/views/fundraisers.js',
-  './js/views/settings.js',
-  './js/views/communications.js',
-  './js/vendor/xlsx.full.min.js',
-  './js/vendor/jspdf.umd.min.js'
+  './js/views/balance.js',
+  './js/views/fundraisers.js'
 ];
 
 self.addEventListener('install', (event) => {
@@ -77,7 +59,6 @@ self.addEventListener('fetch', (event) => {
   }
 
   if (SHELL_URLS.has(request.url)) {
-    // Shell files are pinned per deploy (see CACHE_NAME) — cache-first is safe.
     event.respondWith(
       caches.match(request).then((cached) => cached || fetch(request))
     );
@@ -85,8 +66,6 @@ self.addEventListener('fetch', (event) => {
   }
 
   if (request.mode === 'navigate') {
-    // Network-first for navigations (fresh HTML when online); falls back to
-    // the cached shell so the app still opens offline.
     event.respondWith(
       fetch(request).catch(() => caches.match('./index.html'))
     );
