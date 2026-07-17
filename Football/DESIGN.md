@@ -215,10 +215,16 @@ only surfaces *games*)
 { "id","name","url":"","updatedAt" }
 ```
 
+**FundraiserKind** (admin-defined types beyond the built-in three; `name` is used
+verbatim as a Fundraiser's `kind` value)
+```jsonc
+{ "id","name","updatedAt" }
+```
+
 **Fundraiser**
 ```jsonc
 { "id",
-  "kind": "uniforms" | "team_trip" | "general",   // free-text tolerated
+  "kind": "uniforms" | "team_trip" | "general" | "<custom>",  // free-text tolerated
   "name": "",
   "platformId": "FundraiserPlatform.id | null",    // null = "In person"
   "goalAmountCents": 0,
@@ -293,7 +299,7 @@ migrate(data):
   data.meta     ??= { …defaults… }     // defend hand-built files missing containers
   data.settings ??= {}
   if schemaVersion < 2: add meta.changesSinceBackup; → 2
-  if schemaVersion < 3: settings.hasSeenWizard ??= true; → 3   // true for upgraders → don't re-show wizard
+  if schemaVersion < 3: settings.hasSeenWizard ??= true; fundraiserKinds ??= []; → 3
   return data
 ```
 
@@ -469,8 +475,10 @@ Assign/unassign pulls from the parent list. Deleted parents render
 ### 9.7 fundraisers.js (`#/fundraisers`)
 Active vs **Completed** (collapsible history) fundraisers, each with a progress
 bar, occurrences, and a platform link. Fields lock behind an **Edit** toggle.
-New-platform creation uses a styled `<dialog>`. Money via `centsToDollarsStr`/
-`dollarsToCents`.
+The Add form's **Type** dropdown lists the three built-ins plus any admin-defined
+**FundraiserKind**s; **+ New type** opens a small styled `<dialog>` to add one
+(deduped case-insensitively against built-ins/existing, then auto-selected). Money
+via `centsToDollarsStr`/`dollarsToCents`.
 
 ### 9.8 settings.js (`#/settings`)
 Team name/season; **Backup** (export/import with the plaintext-PII warning
