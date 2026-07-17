@@ -1,4 +1,4 @@
-const CACHE_NAME = 'stm-shell-v13';
+const CACHE_NAME = 'stm-shell-v14';
 
 // App shell + app JS. Earlier versions excluded `js/*.js` so it always came
 // from the network, but that leaves the cached shell unable to hydrate

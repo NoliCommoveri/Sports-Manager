@@ -42,6 +42,16 @@ function migrate(data) {
     data.fundraiserKinds = data.fundraiserKinds ?? [];
     data.schemaVersion = 3;
   }
+  // Backfill collection arrays every load, independent of schemaVersion. A
+  // field added to a migration block only reaches users who pass *through*
+  // that block; anyone already at the target version skips it and ends up
+  // missing the array (the same drift the hasSeenWizard line above closes).
+  // fundraiserKinds shipped that way — v3 stores that never ran the v3 block
+  // lack it, and the Fundraisers view then crashes on `.map` of undefined.
+  data.fundraiserPlatforms ??= [];
+  data.fundraiserKinds ??= [];
+  data.fundraisers ??= [];
+  data.fundraiserOccurrences ??= [];
   // Pass-through at schemaVersion 3. Next migration branches here. Every
   // load path (loadData, the storage listener, importBackup) routes
   // through this.
