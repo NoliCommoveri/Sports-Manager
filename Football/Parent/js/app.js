@@ -4,8 +4,11 @@
 import { importFromHash } from './import.js';
 import { initRouter } from './router.js';
 import { getBundle } from './store.js';
+import { initTheme, initThemeSwitcher } from './theme.js';
 
 export async function boot() {
+  initTheme();
+  initThemeSwitcher(document.getElementById('theme-switcher'));
   const result = await importFromHash();
   applyBranding();
   showImportBanner(result);

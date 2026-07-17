@@ -4,6 +4,10 @@
 // apps never collide even if ever loaded from the same origin.
 
 const STORAGE_KEY = 'stm-parent:v1';
+// Color theme is a device-local display preference, not part of the imported
+// bundle (which gets overwritten on every import) — its own key so a fresh
+// bundle import never resets it.
+const THEME_KEY = 'stm-parent:theme';
 
 function readEnvelope() {
   const raw = localStorage.getItem(STORAGE_KEY);
@@ -28,4 +32,12 @@ export function setBundle(bundle) {
     bundle,
     importedAt: new Date().toISOString()
   }));
+}
+
+export function getThemePreference() {
+  return localStorage.getItem(THEME_KEY);
+}
+
+export function setThemePreference(themeId) {
+  localStorage.setItem(THEME_KEY, themeId);
 }

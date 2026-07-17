@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <title>Football Manager</title>
   <link rel="manifest" href="./manifest.webmanifest" />
-  <meta name="theme-color" content="#011325" />
+  <meta name="theme-color" content="#1f6f43" />
   <link rel="icon" type="image/png" sizes="16x16" href="./icons/icon-16x16.png" />
   <link rel="icon" type="image/png" sizes="32x32" href="./icons/icon-32x32.png" />
   <link rel="icon" type="image/png" sizes="192x192" href="./icons/icon-192x192.png" />
@@ -31,6 +31,7 @@
   <div id="nudge-banner" hidden></div>
   <div id="hygiene-banner" hidden></div>
   <main id="outlet">Loading…</main>
+  <footer id="theme-switcher" class="theme-switcher" aria-label="Color theme"></footer>
   <dialog id="wizard-dialog" class="wizard-dialog"></dialog>
 
   <script src="./js/vendor/xlsx.full.min.js"></script>
@@ -41,8 +42,11 @@
     import { initNudgeBanner } from './js/nudge.js';
     import { initHygieneBanner } from './js/hygiene.js';
     import { initWizard } from './js/wizard.js';
+    import { initTheme, initThemeSwitcher } from './js/theme.js';
 
     seedIfNeeded();
+    initTheme();
+    initThemeSwitcher(document.getElementById('theme-switcher'));
     initRouter(document.getElementById('outlet'), document.getElementById('main-nav'));
     initNudgeBanner(document.getElementById('nudge-banner'));
     initHygieneBanner(document.getElementById('hygiene-banner'));

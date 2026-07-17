@@ -1,4 +1,4 @@
-const CACHE_NAME = 'stm-shell-v16';
+const CACHE_NAME = 'stm-shell-v17';
 
 // App shell + app JS. Earlier versions excluded `js/*.js` so it always came
 // from the network, but that leaves the cached shell unable to hydrate
@@ -31,6 +31,7 @@ const SHELL_FILES = [
   './js/seed.js',
   './js/selectors.js',
   './js/event-types.js',
+  './js/theme.js',
   './js/wizard.js',
   './js/wizard-content.js',
   './js/nudge.js',
