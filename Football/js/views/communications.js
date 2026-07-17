@@ -175,10 +175,11 @@ export function mount(container) {
         ? parents.map(par => {
             const links = [];
             if (par.email) links.push(
-              `<a href="#" data-action="fee-email" data-player="${p.id}" data-email="${escapeHtml(par.email)}">Email ${escapeHtml(par.name)}</a>`);
+              `<a href="#" data-action="fee-email" data-player="${p.id}" data-email="${escapeHtml(par.email)}">Email</a>`);
             if (par.phone) links.push(
-              `<a href="#" data-action="fee-text" data-player="${p.id}" data-phone="${escapeHtml(par.phone)}">Text ${escapeHtml(par.name)}</a>`);
-            return links.length ? links.join(' · ') : `${escapeHtml(par.name)} <span class="muted">(no contact)</span>`;
+              `<a href="#" data-action="fee-text" data-player="${p.id}" data-phone="${escapeHtml(par.phone)}">Text</a>`);
+            const bits = links.length ? links.join(' · ') : '<span class="muted">no contact</span>';
+            return `${escapeHtml(par.name)}: ${bits}`;
           }).join('<br>')
         : '<span class="muted">No parent linked</span>';
 
