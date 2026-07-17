@@ -233,10 +233,15 @@ and renders it. It has **no** add/update/delete code.
 
 ### 5.2 File layout
 
-Mirrors `Football/` but much smaller:
+Mirrors `Football/` but much smaller, and **nested inside it** as a per-sport
+sub-app (`Football/Parent/`). The same layout is cloned under each sport's admin
+app (a future `Softball/Parent/`), so the parent app always sits one level below
+the admin app it belongs to. All paths stay relative (I-5), so the extra nesting
+needs no code change; only the admin's `parentAppBaseUrl()` resolves the Parent
+App at `./Parent/` (a child), not `../Parent/` (a sibling).
 
 ```
-/Parent/
+/Football/Parent/
   index.html                 shell: header, mount point, bootstrap
   manifest.webmanifest       PWA manifest (relative start_url/scope/icons)
   sw.js                      precache shell + offline
@@ -260,6 +265,24 @@ Mirrors `Football/` but much smaller:
 - Key e.g. `stm-parent:v1`, separate from the admin's `stm:v1`.
 - Stores the **last imported bundle** verbatim (plus an import timestamp).
 - **Invariant (inherited I-1):** only `store.js` touches `localStorage`.
+- **Per-sport cloning caveat.** `localStorage` and Cache Storage are scoped to
+  the **origin**, not the path (see `Football/DESIGN.md` §13). All sports'
+  apps share one `…github.io` origin, so when this app is cloned to a second
+  sport (`Softball/Parent/`), that clone **must** use a distinct storage key
+  (e.g. `stm-parent-softball:v1`) and a distinct SW `CACHE_NAME` prefix — else
+  the two parent apps read/write each other's bundle and evict each other's
+  cache. The `Football/Parent/` copy keeps `stm-parent:v1`.
+
+### 5.3a Service-worker scope under nesting
+
+Nesting the Parent App inside the admin app puts it under the admin SW's
+`/Football/` scope. That's safe because the Parent App registers its **own** SW
+at `Football/Parent/sw.js`, whose more-specific `Football/Parent/` scope wins
+for every Parent page once it has been visited. The one gap — a device that
+already runs the admin SW opening a Parent link for the very first time, before
+the Parent SW installs — is closed in the admin `sw.js`: its `fetch` handler
+early-returns for any URL under `./Parent/`, so it never serves the admin shell
+in place of the Parent App.
 
 ### 5.4 Import flow (`js/import.js`)
 
@@ -290,7 +313,7 @@ On load (and whenever the app is opened via a link):
   fonts, analytics. Nothing is fetched; everything arrives in the link.
 - **Invariant (inherited I-5):** all paths relative (`./…`) — imports,
   manifest, SW cache list — so it survives the Pages subpath and the
-  `/Parent/` nesting.
+  `Football/Parent/` nesting.
 - **Invariant (inherited I-10):** the SW `SHELL_FILES` list matches reality and
   `CACHE_NAME` bumps whenever a cached file changes.
 

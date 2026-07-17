@@ -28,9 +28,11 @@ export async function bundleToHashUrl(bundle, baseUrl) {
   return `${baseUrl}#b=${toBase64Url(compressed)}`;
 }
 
-// The deployed Parent App's URL, derived relative to this page (I-5) — the
-// two apps are sibling folders under the same Pages site, whatever that
-// site's own base path happens to be.
+// The deployed Parent App's URL, derived relative to this page (I-5). The
+// Parent App is a child folder of this admin app (`Football/Parent/`), so it
+// resolves at `./Parent/` from the admin shell — the same per-sport nesting
+// works unchanged for a future `Softball/Parent/`, whatever base path the
+// Pages site itself sits at.
 export function parentAppBaseUrl() {
-  return new URL('../Parent/', window.location.href).href;
+  return new URL('./Parent/', window.location.href).href;
 }

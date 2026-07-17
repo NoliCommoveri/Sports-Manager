@@ -532,7 +532,7 @@ detection. These encoding choices are load-bearing; don't "simplify" them.
   module + both vendored libs + all icons. If a module isn't listed, the app
   boots online (uncached fetch) but **404s offline**. Keep this list in sync with
   the `js/` tree (I-10).
-- **`CACHE_NAME`** (currently `stm-shell-v11`) — **bump it on every change to any
+- **`CACHE_NAME`** (currently `stm-shell-v16`) — **bump it on every change to any
   cached file**, or service-worker-controlled clients keep serving stale code.
   The `activate` handler deletes all caches whose name ≠ `CACHE_NAME`.
 - **Fetch strategy:** cache-first for shell URLs (safe because they're pinned per
