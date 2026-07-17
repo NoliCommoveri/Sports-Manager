@@ -1,7 +1,7 @@
 // balance.js — this family's own child(ren) balance(s). Per-child rows plus
 // a summed total when there's more than one child (PARENT-APP-SPEC.md §8.1).
 import { getBundle } from '../store.js';
-import { escapeHtml, centsToDollarsStr } from '../util.js';
+import { escapeHtml, formatMoney } from '../util.js';
 import { emptyState, freshnessStamp } from './shared.js';
 
 function childCard(c) {
@@ -15,7 +15,7 @@ function childCard(c) {
         <div class="child-name">${name}</div>
         ${meta ? `<div class="child-meta">${meta}</div>` : ''}
       </div>
-      <div class="child-balance ${cents > 0 ? 'owed' : 'zero'}">$${centsToDollarsStr(cents)}</div>
+      <div class="child-balance ${cents > 0 ? 'owed' : 'zero'}">${formatMoney(cents)}</div>
     </div>`;
 }
 
@@ -33,7 +33,7 @@ export function mount(container) {
     ${children.length > 1 ? `
       <div class="balance-total">
         <span>Total</span>
-        <span>$${centsToDollarsStr(total)}</span>
+        <span>${formatMoney(total)}</span>
       </div>` : ''}
     ${children.length && total === 0 ? '<p class="warning paid-up">✅ You\'re all paid up. Thank you!</p>' : ''}
   `;

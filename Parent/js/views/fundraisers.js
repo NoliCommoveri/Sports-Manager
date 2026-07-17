@@ -1,6 +1,6 @@
 // fundraisers.js — team-wide fundraiser progress (shareable, no per-family data).
 import { getBundle } from '../store.js';
-import { escapeHtml, centsToDollarsStr, fmtDate } from '../util.js';
+import { escapeHtml, formatMoney, fmtDate } from '../util.js';
 import { emptyState, freshnessStamp } from './shared.js';
 
 function fundraiserCard(f) {
@@ -8,8 +8,8 @@ function fundraiserCard(f) {
   const raised = f.raisedCents || 0;
   const pct = goal > 0 ? Math.min(100, Math.round((raised / goal) * 100)) : null;
   const money = goal > 0
-    ? `$${centsToDollarsStr(raised)} of $${centsToDollarsStr(goal)} raised`
-    : `$${centsToDollarsStr(raised)} raised`;
+    ? `${formatMoney(raised)} of ${formatMoney(goal)} raised`
+    : `${formatMoney(raised)} raised`;
   const dates = (f.start && f.end)
     ? `${escapeHtml(fmtDate(f.start))} – ${escapeHtml(fmtDate(f.end))}`
     : 'Dates TBD';

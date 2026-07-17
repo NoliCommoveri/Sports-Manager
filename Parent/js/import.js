@@ -3,26 +3,14 @@
 // the views, never trusted here beyond shape-checking.
 import { setBundle } from './store.js';
 
-const MAX_SUPPORTED_BUNDLE_VERSION = 1;
+const MAX_SUPPORTED_BUNDLE_VERSION = 2;
 
 async function decompress(bytes) {
   const ds = new DecompressionStream('deflate-raw');
   const writer = ds.writable.getWriter();
   writer.write(bytes);
   writer.close();
-
-  const chunks = [];
-  const reader = ds.readable.getReader();
-  for (;;) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    chunks.push(value);
-  }
-  const total = chunks.reduce((n, c) => n + c.length, 0);
-  const out = new Uint8Array(total);
-  let offset = 0;
-  for (const c of chunks) { out.set(c, offset); offset += c.length; }
-  return out;
+  return new Uint8Array(await new Response(ds.readable).arrayBuffer());
 }
 
 function fromBase64Url(str) {
@@ -34,11 +22,20 @@ function fromBase64Url(str) {
   return bytes;
 }
 
+// An array of plain, non-null objects — the shape every view's row-renderer
+// assumes when it dereferences fields like c.firstName or e.date. A bundle
+// that's an array of nulls/primitives passes `Array.isArray` but would throw
+// deep inside a view's render loop instead of being refused here at the
+// import boundary.
+function isArrayOfObjects(v) {
+  return Array.isArray(v) && v.every(item => item != null && typeof item === 'object' && !Array.isArray(item));
+}
+
 function isValidBundle(b) {
   if (!b || typeof b !== 'object' || Array.isArray(b)) return false;
-  if (typeof b.bundleVersion !== 'number') return false;
+  if (typeof b.bundleVersion !== 'number' || !Number.isInteger(b.bundleVersion) || b.bundleVersion < 1) return false;
   if (!b.team || typeof b.team !== 'object') return false;
-  return Array.isArray(b.children) && Array.isArray(b.schedule) && Array.isArray(b.fundraisers);
+  return isArrayOfObjects(b.children) && isArrayOfObjects(b.schedule) && isArrayOfObjects(b.fundraisers);
 }
 
 // Reads location.hash (if it's a `#b=...` bundle link), decodes it, and

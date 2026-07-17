@@ -11,7 +11,10 @@ import { centsToDollarsStr } from './util.js';
 const DEFAULT_WEEKLY_DAYS = 7;
 const DEFAULT_REGISTRATION_DAYS = 60; // registration lands further out than a week
 
-function teamName() {
+// Shared by every view that composes a family-facing message/subject line
+// (Communications, Parents' "Send family link"), so the fallback text and
+// trimming rule live in exactly one place.
+export function teamName() {
   return getSettings().teamName?.trim() || 'Team';
 }
 

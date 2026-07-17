@@ -1,6 +1,6 @@
 // schedule.js — the team schedule, with this family's snack duty flagged.
 import { getBundle } from '../store.js';
-import { escapeHtml, fmtDate } from '../util.js';
+import { escapeHtml, fmtDate, fmtTime } from '../util.js';
 import { emptyState, freshnessStamp } from './shared.js';
 
 const TYPE_LABELS = { game: 'Game', practice: 'Practice', registration: 'Registration' };
@@ -9,7 +9,7 @@ function typeLabel(t) { return TYPE_LABELS[t] || t; }
 // Every bundle-derived field is escaped individually before concatenation
 // (inherited I-3) — the imported bundle is untrusted input.
 function eventRow(e) {
-  const time = escapeHtml(e.endTime ? `${e.startTime}–${e.endTime}` : e.startTime);
+  const time = escapeHtml(fmtTime(e.startTime, e.endTime));
   const label = escapeHtml(typeLabel(e.type));
   const opponent = e.type === 'game' ? ` vs ${escapeHtml(e.opponent || 'TBD')}` : '';
   const score = e.score ? ` <span class="muted">(Final ${escapeHtml(e.score)})</span>` : '';

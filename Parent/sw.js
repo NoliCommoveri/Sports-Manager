@@ -1,4 +1,4 @@
-const CACHE_NAME = 'stm-parent-shell-v1';
+const CACHE_NAME = 'stm-parent-shell-v2';
 
 const SHELL_FILES = [
   './',
@@ -27,6 +27,7 @@ const SHELL_FILES = [
   './js/util.js',
   './js/router.js',
   './js/views/shared.js',
+  './js/views/home.js',
   './js/views/schedule.js',
   './js/views/balance.js',
   './js/views/fundraisers.js'

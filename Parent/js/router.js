@@ -1,10 +1,11 @@
 // router.js — hash-based view switching (#/schedule, #/balance, #/fundraisers).
 const routes = {
+  '#/home':        () => import('./views/home.js'),
   '#/schedule':    () => import('./views/schedule.js'),
   '#/balance':     () => import('./views/balance.js'),
   '#/fundraisers': () => import('./views/fundraisers.js'),
 };
-const DEFAULT_ROUTE = '#/schedule';
+const DEFAULT_ROUTE = '#/home';
 
 let currentUnmount = null;
 

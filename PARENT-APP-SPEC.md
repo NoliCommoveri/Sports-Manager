@@ -56,14 +56,18 @@ agree on it exactly.
 
 ```jsonc
 {
-  "bundleVersion": 1,          // Parent-App payload format. Independent of the
+  "bundleVersion": 2,          // Parent-App payload format. Independent of the
                                // admin's SCHEMA_VERSION. Bump on any shape change.
-  "schemaVersion": 3,          // admin store schema the bundle was built from,
+  "schemaVersion": 4,          // admin store schema the bundle was built from,
                                // so the Parent App can refuse a too-new bundle.
   "generatedAt": "2026-07-17T15:00:00.000Z",
 
   "team":   { "name": "Wildcats", "season": "Fall 2026" },
   "parent": { "name": "Jenah Carson" },
+  "announcement": "Practice moved to Thursdays this month.", // free text from
+                               // settings.parentAnnouncement, admin-authored,
+                               // team-wide (not per-family); "" hides it.
+  "record": { "wins": 1, "losses": 1, "ties": 0 },  // completed games only
 
   "children": [                // this parent's players only (via playerParents)
     {
@@ -92,6 +96,16 @@ agree on it exactly.
   ]
 }
 ```
+
+`record`/next-game/next-practice/"registration open" all back the Home view
+(§5.6). `record` is precomputed by the admin (mirrors `selectors.js`'s
+`getTeamRecord()`) rather than derived client-side from `schedule[].score`,
+since the score is a display-formatted string (`"14–7"`) and re-parsing it to
+determine a winner would be a fragile, purely-textual dependency. Next
+game/practice and "registration open", by contrast, need no extra field —
+they're filtered straight out of `schedule[]` (`type`/`status`/`date`), so a
+`registration`-type event already flows into a per-family bundle unchanged
+just by not being excluded.
 
 ### 2.2 What is deliberately **absent**
 
@@ -156,10 +170,17 @@ No QR library is added.
 
 Per parent row/detail, a button that:
 
-1. Calls `exportParentBundle(parent.id)` → `bundleToHashUrl(...)`.
-2. Opens the composer via the **existing** `messaging.js` builders:
+1. Calls `exportParentBundle(parent.id)` → `bundleToHashUrl(...)` (async —
+   the compression step is a real `await`).
+2. Builds the composer link via the **existing** `messaging.js` builders:
    `smsLink(parent.phone, "Your <team> info: <url>")` or
    `mailtoLink(parent.email, subject, body)`.
+3. Renders that link as a plain `<a href>` the admin taps themselves, rather
+   than auto-navigating via `window.location.href` — a custom-scheme
+   (`sms:`/`mailto:`) navigation fired after an `await` can silently lose
+   iOS Safari's user-activation context and no-op. A real anchor click is
+   its own fresh, synchronous gesture, so it can't hit that failure mode.
+   This is the same pattern `communications.js`'s Email/Text links already use.
 
 Reuses the app's established SMS/email pattern (the admin already texts parents,
 including balances via the overdue-fee templates in `messaging.js`), so this
@@ -227,6 +248,8 @@ Mirrors `Football/` but much smaller:
     util.js                  escapeHtml, cents↔dollars (copied from admin)
     router.js                hash routing + mount/unmount
     views/
+      home.js                 landing dashboard: record, next game/practice,
+                               registration-open banner, announcement
       schedule.js            team schedule, with "your snack duty" flagged
       balance.js             this family's balance(s)
       fundraisers.js         fundraiser progress
@@ -245,8 +268,11 @@ On load (and whenever the app is opened via a link):
 1. Read `location.hash`; if it starts with `#b=`, take the payload.
 2. base64url-decode → **`DecompressionStream('deflate-raw')`** → JSON.parse.
 3. **Validate** before storing (mirror `isValidStore` in `data.js`):
-   - is an object; has numeric `bundleVersion` ≤ supported max;
-   - has `team`, `children[]`, `schedule[]`, `fundraisers[]`.
+   - is an object; has an integer `bundleVersion` ≥ 1, ≤ supported max;
+   - has `team`; has `children[]`/`schedule[]`/`fundraisers[]`, each an array
+     of non-null objects (not just `Array.isArray` — a corrupted/truncated
+     link with e.g. `schedule: [null]` must be refused here, not throw deep
+     inside a view's row-renderer).
    - On `bundleVersion` too new → refuse with a clear "update this app" message,
      leave any existing store untouched (mirrors `importBackup`'s refusal).
 4. On success, replace the stored bundle and **clear the hash** from the URL
@@ -270,6 +296,13 @@ On load (and whenever the app is opened via a link):
 
 ### 5.6 Views (read-only)
 
+- **Home (default route, `#/home`):** season record (`record`); next
+  upcoming game and next upcoming practice (first `schedule[]` entry of that
+  `type`/`status: "scheduled"` with `date >= today`, no extra bundle field
+  needed); a **"📝 Registration is open"** banner when `schedule[]` has any
+  upcoming `type: "registration"` event; the admin's free-authored
+  `announcement`, shown verbatim (escaped) when non-empty and hidden when
+  blank.
 - **Schedule:** all events, date-ordered; each row shows type/opponent/time/
   location/status/score; rows where `isMySnackDuty` is true get a clear "🍎 Your
   snack duty" marker.

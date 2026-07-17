@@ -102,6 +102,52 @@ section, .fundraiser-card, .child-card {
 
 .muted { color: var(--color-text-muted); margin: 0; }
 
+/* Home dashboard */
+.dashboard-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: var(--gap);
+  margin-bottom: var(--gap);
+}
+
+.dashboard-cards section { margin-bottom: 0; }
+
+.dashboard-cards h3 {
+  margin: 0 0 6px;
+  font-size: 0.9rem;
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.record-card { text-align: center; }
+
+.big-stat { font-size: 2rem; font-weight: 700; margin: 0; }
+
+.vs-line { font-size: 1.05rem; margin: 0 0 4px; }
+
+.when-line, .loc-line {
+  margin: 0 0 2px;
+  color: var(--color-text-muted);
+  font-size: 0.9rem;
+}
+
+.registration-banner {
+  border-color: var(--color-warning-border);
+  background: var(--color-warning-bg);
+  color: #7a5b00;
+}
+
+.registration-banner h3 { margin-top: 0; }
+.registration-banner .when-line, .registration-banner .loc-line { color: inherit; }
+
+.announcement-section h3 { margin-top: 0; }
+.announcement-text {
+  white-space: pre-wrap;
+  word-break: break-word;
+  margin: 0;
+}
+
 /* Tables */
 .table-scroll {
   overflow-x: auto;

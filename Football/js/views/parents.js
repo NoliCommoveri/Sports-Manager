@@ -1,14 +1,12 @@
 // parents.js — CRUD parents and playerParents links.
 import {
-  getParents, addParent, updateParent, deleteParent,
+  getParents, getParentById, addParent, updateParent, deleteParent,
   getPlayers, getPlayerParentsForParent, addPlayerParent, deletePlayerParent,
-  getSettings, exportParentBundle, subscribe
+  exportParentBundle, subscribe
 } from '../data.js';
-import { smsLink, mailtoLink } from '../messaging.js';
+import { smsLink, mailtoLink, teamName } from '../messaging.js';
 import { bundleToHashUrl, parentAppBaseUrl } from '../parent-link.js';
 import { escapeHtml } from '../util.js';
-
-function teamName() { return getSettings().teamName?.trim() || 'Team'; }
 
 export function mount(container) {
   container.innerHTML = `
@@ -131,15 +129,20 @@ export function mount(container) {
     }
   });
 
-  // Builds this parent's bundle, compresses it into a Parent App link (§2/§3.2
-  // of PARENT-APP-SPEC.md), and opens the SMS composer (falling back to email
-  // when there's no phone on file) prefilled with it.
+  // Builds this parent's bundle and compresses it into a Parent App link
+  // (§2/§3.2 of PARENT-APP-SPEC.md), then renders it as a plain tappable
+  // link rather than auto-navigating: the compression is async, and
+  // reassigning window.location.href after an `await` can silently lose
+  // iOS Safari's user-activation context for a custom-scheme (sms:/mailto:)
+  // navigation. A real <a href> the admin taps themselves is a fresh,
+  // synchronous gesture on that element — the same pattern communications.js
+  // already uses for its Email/Text links — so it can't hit that failure mode.
   async function sendFamilyLink(parentId, btn) {
-    const parent = getParents().find(p => p.id === parentId);
+    const parent = getParentById(parentId);
     if (!parent) return;
     const statusEl = btn.closest('.field-row')?.querySelector('.send-link-status');
     btn.disabled = true;
-    if (statusEl) statusEl.textContent = 'Building link…';
+    if (statusEl) { statusEl.innerHTML = ''; statusEl.textContent = 'Building link…'; }
     try {
       const bundle = exportParentBundle(parentId);
       const url = await bundleToHashUrl(bundle, parentAppBaseUrl());
@@ -147,8 +150,14 @@ export function mount(container) {
       const link = parent.phone
         ? smsLink(parent.phone, body)
         : mailtoLink(parent.email, `${teamName()} Family Info`, body);
-      window.location.href = link;
-      if (statusEl) statusEl.textContent = '';
+      if (statusEl) {
+        statusEl.textContent = '';
+        const anchor = document.createElement('a');
+        anchor.href = link;
+        anchor.className = 'btn-link';
+        anchor.textContent = parent.phone ? 'Tap to open Text Message' : 'Tap to open Email';
+        statusEl.appendChild(anchor);
+      }
     } catch (err) {
       if (statusEl) statusEl.textContent = 'Could not build the link. ' + err.message;
     } finally {

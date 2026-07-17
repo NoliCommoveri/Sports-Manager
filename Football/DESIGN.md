@@ -113,7 +113,7 @@ architecture.
 
 ## 5. Data model / schema
 
-**Storage key:** `stm:v1` (a single JSON object). **`SCHEMA_VERSION`: `3`.**
+**Storage key:** `stm:v1` (a single JSON object). **`SCHEMA_VERSION`: `4`.**
 
 The key name is fixed and version-independent; the *version* is the
 `schemaVersion` field inside the JSON, not the key. Do **not** rename the key to
@@ -123,7 +123,7 @@ migrate — bump `schemaVersion` and extend `migrate()`.
 
 ```jsonc
 {
-  "schemaVersion": 3,
+  "schemaVersion": 4,
   "meta": {
     "lastModifiedAt": "ISO-8601 string | null",   // stamped by saveData()
     "lastBackupAt":   "ISO-8601 string | null",   // stamped by exportBackup()
@@ -133,7 +133,9 @@ migrate — bump `schemaVersion` and extend `migrate()`.
     "teamName":     "",            // free text
     "season":       "",            // free text, e.g. "Fall 2026"
     "myPlayerId":   null,          // Player.id highlighted app-wide, or null
-    "hasSeenWizard": false         // false → first-run wizard auto-opens (added in v3)
+    "hasSeenWizard": false,        // false → first-run wizard auto-opens (added in v3)
+    "parentAnnouncement": ""       // free text shown on every family's Parent App
+                                    // Home tab; empty hides it (added in v4)
   },
   "players":              [ /* Player */ ],
   "parents":              [ /* Parent */ ],
@@ -300,6 +302,7 @@ migrate(data):
   data.settings ??= {}
   if schemaVersion < 2: add meta.changesSinceBackup; → 2
   if schemaVersion < 3: settings.hasSeenWizard ??= true; fundraiserKinds ??= []; → 3
+  if schemaVersion < 4: settings.parentAnnouncement ??= ''; → 4
   return data
 ```
 

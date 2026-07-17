@@ -270,6 +270,14 @@ button:hover { background: var(--color-primary-dark); }
 .send-link-warning { margin-top: 6px; }
 .send-link-status { font-size: 0.85rem; color: var(--color-text-muted); margin-left: 8px; }
 
+.announcement-section textarea {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  resize: vertical;
+  font-family: inherit;
+}
+
 #last-backup-status.nudge {
   color: var(--color-danger);
   font-weight: 600;
